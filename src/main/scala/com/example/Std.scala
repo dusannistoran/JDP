@@ -2,7 +2,6 @@ package com.example
 
 import com.example.Utils.getNowHoursUTC
 import com.typesafe.config.{Config, ConfigFactory}
-import org.apache.spark.Partition
 import org.apache.spark.sql.functions.{avg, col, hour, lit, stddev, stddev_pop, stddev_samp, when}
 import org.apache.spark.sql.types.StringType
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -14,11 +13,6 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import scala.collection.mutable
 import scala.compat.Platform.EOL
-
-//import com.spark.mail.Email
-
-import javax.mail._
-import javax.mail.internet._
 
 import java.io.File
 
@@ -68,6 +62,7 @@ class Std {
 
   def getDataframeFromPostgres(): DataFrame = {
 
+    // getting the whole table from Postgres
     val dfWholeTable = spark.read
       .format("jdbc")
       .option("driver", s"$postgresDriver")
@@ -76,7 +71,6 @@ class Std {
       .option("user", s"$postgresUser")
       .option("password", s"$postgresPassword")
       .load()
-    //dfWholeTable
 
     val dfWholeTableWithDateString = dfWholeTable
       .withColumn("invoice_date_string", dfWholeTable.col("invoice_date").cast(StringType))
@@ -94,6 +88,8 @@ class Std {
     val twoHoursAgoStr: String = twoHoursAgoInt + ""
     val hourAgoStr: String = hourAgoInt + ""
 
+    // filtering table by current time; previous hour and current hour;
+    // later I'll modify this and involve 3 hours ago, 2 hours ago, hour ago and current hour invoices
     val dfFilteredByHour = dfOnlyToday
       .filter(hour(col("invoice_date")) === currentTimeHoursStr ||
               hour(col("invoice_date")) === hourAgoStr)
@@ -105,38 +101,22 @@ class Std {
 
     dfFilteredByHour
   }
-}
 
-object Std {
-
-  def main(args: Array[String]): Unit = {
-
-    val std = new Std()
-
-    val dfFromPostgres: DataFrame = std.getDataframeFromPostgres()
-    println("dfFromPostgres:")
-    dfFromPostgres.show()
-    println("dfFromPostgres count: " + dfFromPostgres.count())
-    println("dfFromPostgres schema:")
-    dfFromPostgres.printSchema()
+  def getDataframeWithQuantityMedian(dfFromPostgres: DataFrame): DataFrame = {
 
     val dfQuantityMedian = dfFromPostgres
       .withColumn("quantity_median", lit(dfFromPostgres.stat.approxQuantile("quantity", Array(0.5), 0.2)))
       .withColumn("quantity_median_int", col("quantity_median")(0))
+    dfQuantityMedian
+  }
 
-    println("dfQuantityMedian:")
-    dfQuantityMedian.show()
-    println("dfQuantityMedian count: " + dfQuantityMedian.count())
-    println("dfQuantityMedian schema:")
-    dfQuantityMedian.printSchema()
+  def getDataframeWithStandardDeviation(dfFromPostgres: DataFrame, dfQuantityMedian: DataFrame): DataFrame = {
 
     val dfStandardDeviationSample = dfFromPostgres.select(stddev("quantity"))
     println("dfStandardDeviationSample:")
     dfStandardDeviationSample.show()
 
     val valueStandardDeviationSample: Double = dfStandardDeviationSample.collect().head.getDouble(0)
-
-
 
     val dfWithStandardDeviation = dfQuantityMedian
       .drop("quantity_median")
@@ -159,106 +139,91 @@ object Std {
     val dfForEmail = dfFiltered
       .drop("date")
       .withColumnRenamed("quantity_median_int", "quantity_median")
-      //.withColumnRenamed("very_large_quantity", "large_qty")
 
-    //val countryIds = dfFiltered.select("country_id").rdd.map(x => x.mkString).collect()
-    //val countryId = countryIds(0)
-    //println("countryId: " + countryId)
-    //val stockCodes = dfFiltered.select("stock_code").rdd.map(x => x.mkString).collect()
-    //val stockCode = stockCodes(0)
-    //println("stockCode: " + stockCode)
+    dfForEmail
+  }
+
+  def createEmailBody(df: DataFrame): String = {
+
+    //val text: mutable.StringBuilder = new mutable.StringBuilder("")
+    var text: String = ""
+    val data = df.rdd
+      .map(row => {
+        row.mkString(" | ") + "\r\n"
+      }).collect()
+    data.foreach(line => text = text + line + "\r\n")
+
+
+    println("text: ")
+    println(text)
+
+    text
+  }
+}
+
+object Std {
+
+  def main(args: Array[String]): Unit = {
+
+    val std = new Std()
+
+    val dfFromPostgres: DataFrame = std.getDataframeFromPostgres()
+    println("dfFromPostgres:")
+    dfFromPostgres.show()
+    println("dfFromPostgres count: " + dfFromPostgres.count())
+    println("dfFromPostgres schema:")
+    dfFromPostgres.printSchema()
+
+    //val dfQuantityMedian = dfFromPostgres
+    //  .withColumn("quantity_median", lit(dfFromPostgres.stat.approxQuantile("quantity", Array(0.5), 0.2)))
+    //  .withColumn("quantity_median_int", col("quantity_median")(0))
+
+    val dfQuantityMedian: DataFrame = std.getDataframeWithQuantityMedian(dfFromPostgres)
+    println("dfQuantityMedian:")
+    dfQuantityMedian.show()
+    println("dfQuantityMedian count: " + dfQuantityMedian.count())
+    println("dfQuantityMedian schema:")
+    dfQuantityMedian.printSchema()
+
+    //val dfStandardDeviationSample = dfFromPostgres.select(stddev("quantity"))
+    //println("dfStandardDeviationSample:")
+    //dfStandardDeviationSample.show()
+
+    //val valueStandardDeviationSample: Double = dfStandardDeviationSample.collect().head.getDouble(0)
+
+    val dfWithStandardDeviation = std.getDataframeWithStandardDeviation(dfFromPostgres, dfQuantityMedian)
+    //val dfWithStandardDeviation = dfQuantityMedian
+    //  .drop("quantity_median")
+    //  .withColumn("stddev(quantity)", lit(valueStandardDeviationSample))
+    //  .withColumn("very_large_quantity",
+    //    when(col("quantity") > (lit(2.0) * col("stddev(quantity)") + col("quantity_median_int")), lit(true))
+    //      .otherwise(lit(false)))
+    //println("dfWithStandardDeviation:")
+    //dfWithStandardDeviation.show(151)
+    //println("dfWithStandardDeviation count: " + dfWithStandardDeviation.count())
+    //println("dfWithStandardDeviation schema:")
+    //dfWithStandardDeviation.printSchema()
+
+    //val dfFiltered = dfWithStandardDeviation.filter(col("very_large_quantity").equalTo("true"))
+
+    //println("dfFiltered:")
+    //dfFiltered.show()
+    //println("dfFiltered count: " + dfFiltered.count())
+
+    //val dfForEmail = dfFiltered
+    //  .drop("date")
+    //  .withColumnRenamed("quantity_median_int", "quantity_median")
+
+    //val dfForEmail = std.getDataframeWithStandardDeviation(dfFromPostgres, dfQuantityMedian)
+
 
     val columnsSeq = Seq("country_id", "stock_code", "invoice_no", "customer_id", "country",
                      "invoice_date", "quantity", "unit_price", "product_description", "region_id",
                    "total_price", "country_name", "quantity_median", "stddev(quantity)", "very_large_quantity")
 
-
-
-    def createEmailBody(df: DataFrame): String = {
-
-
-      var text: mutable.StringBuilder = new mutable.StringBuilder("")
-      val data = df.rdd
-        .map(row => {
-          row.mkString(" | ") + "\r\n"
-        }).collect()
-      data.foreach(line => text.append(text + line + "\r\n"))
-
-      val textStr: String = text.toString()
-      println("text: ")
-      println(textStr)
-
-      textStr
-    }
-
-
-    /*
-    def createHtmlEmailBody(df: DataFrame): String = {
-
-      val columnNames = df.columns.map(x => "<th>" + x.trim + "</th>").mkString
-      val data = df.collect().mkString
-      val data1 = data.split(",").map(x => "<td>".concat(x).concat("</td>"))
-      val data2 = data1.mkString.replaceAll("<td>\\[", "<tr><td>")
-      val data3 = data2.mkString.replaceAll("]\\[", "</td></tr><td>").replaceAll("]", "")
-
-      val msg =
-        s"""<!DOCTYPE html>
-           |<html>
-           |   <head>
-           |      <style>
-           |         table {
-           |            border: 1px solid black;
-           |         }
-           |         th {
-           |          border: 1px solid black;
-           |          background-color: #FFA;
-           |          }
-           |         td {
-           |          border: 1px solid black;
-           |          background-color: #FFF;
-           |          }
-           |      </style>
-           |   </head>
-           |
-           |   <body>
-           |      <h1>Report</h1>
-           |
-           |         <br> $columnNames </br> $data3
-           |
-           |   </body>
-           |</html>""".stripMargin
-
-      msg
-    }
-     */
-
-    /*
-    def getPathOfCSVFiles(dir: String): List[String] = {
-      val d = new File(dir)
-      var path = new ListBuffer[String]()
-      if (d.exists) {
-        val a = d.listFiles
-        a.foreach { x =>
-          val CSV: Boolean = x.toString.split("/").last.contains(".csv")
-          val CRC: Boolean = x.toString.split("/").last.contains(".crc")
-
-          if (CSV && !CRC) {
-            path += x.toString.trim
-          }
-        }
-      } else {
-        println("Path " + d + " does not exists!!!!!!!!!!!!")
-      }
-      path.toList
-    }
-     */
-
-    //val OutputPath = "~/scalaProjects/JDP/src/main/resources"
-    //val OutputPath = "./home/scala/src/main/resources"
-    //val ListFiles = getPathOfCSVFiles(OutputPath).mkString(";")
-    //val msg = createHtmlEmailBody(dfForEmail)
     val header = columnsSeq.map(c => c + " | ").mkString
-    val msg = header + "\r\n" + createEmailBody(dfForEmail)
+    //val msg = header + "\n" + createEmailBody(dfForEmail)
+    val msg = header + "\n" + std.createEmailBody(dfWithStandardDeviation)
 
     val obj = new Email("/home/scala/src/main/resources/application-mail.conf")
     val spark: SparkSession = SparkSession.builder().appName("Spark Mail Job").master("local[*]").getOrCreate()

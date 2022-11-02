@@ -50,7 +50,7 @@ class CountriesFromInvoicesCsvToHDFS(localPath: String, hdfsPath: String) {
     val csvToday = today.minusDays(differenceInDays)
     val csvTodayFormattedString: String = csvToday.format(formatterDate)
 
-    // THIS IS FROM INVOICES CSV!!!
+    // This is from invoices.csv
     val dfWholeCsvFile = spark
       .read
       .format("csv")
@@ -58,6 +58,7 @@ class CountriesFromInvoicesCsvToHDFS(localPath: String, hdfsPath: String) {
       .schema(schema)
       .load(localPath)
 
+    // filtered by date: today - differenceInDays
     val dfOnlyAkaToday = dfWholeCsvFile.filter(col("InvoiceDate").startsWith(csvTodayFormattedString))
     println("dfOnlyAkaToday:")
     dfOnlyAkaToday.show()
@@ -68,6 +69,7 @@ class CountriesFromInvoicesCsvToHDFS(localPath: String, hdfsPath: String) {
 
   def modifyDataframeAndSaveToHDFS(df: DataFrame): Unit = {
 
+    // extracting country_id and country_name
     val splitColCountry = split(df.col("Country"), "-")
     val dfWithCountryIdCountryName = df
       .withColumn("country_id", splitColCountry.getItem(0))
@@ -85,6 +87,7 @@ class CountriesFromInvoicesCsvToHDFS(localPath: String, hdfsPath: String) {
     dfCountryIdCountryName.show()
     println("dfCountryIdCountryName count: " + dfCountryIdCountryName.count())
 
+    // write countries to HDFS
     dfCountryIdCountryName.write
       .mode("overwrite")
       .option("header", "true")
@@ -109,9 +112,9 @@ object CountriesFromInvoicesCsvToHDFS {
     val countriesFromInvoicesCsvToHDFS =
       new CountriesFromInvoicesCsvToHDFS(csvInvoicesPath, hdfsWholePath)
     val dataframe = countriesFromInvoicesCsvToHDFS.getDataframeFromLocalByGivenDate
-    println("dataframe:")
-    dataframe.show()
-    println("dataframe count: " + dataframe.count())
+    //println("dataframe:")
+    //dataframe.show()
+    //println("dataframe count: " + dataframe.count())
 
     countriesFromInvoicesCsvToHDFS.modifyDataframeAndSaveToHDFS(dataframe)
 

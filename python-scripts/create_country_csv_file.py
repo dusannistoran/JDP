@@ -39,13 +39,6 @@ with open(f'{countries_csv_filepath}', 'w', encoding="UTF-8", newline='') as csv
     writer = csv.writer(csv_file)
     writer.writerow(data_output_countries_dict.keys())
     writer.writerows(zip(*data_output_countries_dict.values()))
-'''
-with open(f'{countries_csv_filepath}', 'r', encoding="ISO-8859-1") as csv_file:
-    csv_reader = csv.DictReader(csv_file, delimiter=',')
-    for line in csv_reader:
-        if line["CountryID"] == '9999':
-            print(line["CountryName"])
-'''
 
 
 

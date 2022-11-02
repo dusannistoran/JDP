@@ -34,7 +34,7 @@ class Queries {
     .config("spark.hadoop.hive.exec.dynamic.partition", "true")
     .config("spark.hadoop.hive.exec.dynamic.partition.mode", "nonstrict")
     .master(s"$sparkCores")
-    .appName("join tables")
+    .appName("doing some queries")
     .enableHiveSupport()
     .getOrCreate()
 
@@ -89,6 +89,7 @@ object Queries {
     topBuyersPerCountryRegion.show()
     println("topBuyersPerCountryRegion count: " + topBuyersPerCountryRegion.count())
 
+
     // USERS WHO PLACE ORDERS FROM DIFFERENT REGIONS OF THE SAME COUNTRY
     val aggregatingCols = Seq("customer_id", "country_id", "country_name")
     val usersWhoPlaceOrdersFromDifferentRegionsOfTheSameCountry = dfFromPostgres
@@ -105,6 +106,7 @@ object Queries {
     println("usersWhoPlaceOrdersFromDifferentRegionsOfTheSameCountry count: " +
       usersWhoPlaceOrdersFromDifferentRegionsOfTheSameCountry.count())
 
+
     // USERS WHO ORDER FROM MORE THAN ONE COUNTRY
     val usersWhoOrderFromMoreThanOneCountry = dfFromPostgres
       .filter(col("customer_id").isNotNull)
@@ -119,6 +121,7 @@ object Queries {
     usersWhoOrderFromMoreThanOneCountry.show()
     println("usersWhoOrderFromMoreThanOneCountry count: " + usersWhoOrderFromMoreThanOneCountry.count())
 
+
     // HOW MANY USERS HAVE PLACED ONE ORDER
     val usersWhoHavePlacedOneOrder = dfFromPostgres
       .filter(col("customer_id").isNotNull)
@@ -126,12 +129,12 @@ object Queries {
       .agg(count("*").as("cnt"))
       .orderBy(asc("customer_id"))
       .where(col("cnt").equalTo(1))
-      //.withColumn("num_of_customers", count("*"))
 
     println("HOW MANY USERS HAVE PLACED ONE ORDER:")
     usersWhoHavePlacedOneOrder.show()
     println("usersWhoHavePlacedOneOrder count: " + usersWhoHavePlacedOneOrder.count())
 
+    
     // HOW MANY USERS HAVE PLACED MORE THAN ONE ORDER
     val usersWhoHavePlacedMoreThanOneOrder = dfFromPostgres
       .filter(col("customer_id").isNotNull)

@@ -2,7 +2,6 @@ package com.example
 
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.hadoop.fs.{FileSystem, Path}
-import org.apache.spark.sql.functions.expr
 import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType, TimestampType}
 import org.slf4j.LoggerFactory
@@ -36,7 +35,7 @@ class MainTableEmpty(hiveTableName: String) {
 
   def createHiveTable(hdfsPath: String): Unit = {
 
-    //val hdfsPath = "hdfs://namenode:8020/user/hive/warehouse/main"
+    // deleting any invoices on HDFS if they exist
     val fileSystem = FileSystem.get(spark.sparkContext.hadoopConfiguration)
     val srcPath = new Path(hdfsPath)
     if (fileSystem.exists(srcPath)) {
@@ -56,11 +55,9 @@ class MainTableEmpty(hiveTableName: String) {
 
     import org.apache.spark.sql.Row
     val dfEmpty = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], mainSchema)
-      //.withColumn("current_time", expr("reflect('java.time.LocalDateTime', 'now')"))
 
     dfEmpty.write
       .mode(SaveMode.Overwrite)
-      //.partitionBy("current_time")
       .saveAsTable(hiveTableName)
   }
 

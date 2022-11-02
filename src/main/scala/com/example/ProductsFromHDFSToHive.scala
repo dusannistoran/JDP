@@ -52,17 +52,16 @@ class ProductsFromHDFSToHive(hdfsPath: String, hiveTableName: String) {
 
     val today = new SimpleDateFormat("dd-MM-yyyy").format(new Date())
     println("hdfsPath: " + hdfsPath)
-    val hdfsWholePath = hdfsPath + "/" + today
-    println("hdfsWholePath: " + hdfsWholePath)
+    val hdfsAbsolutePath = hdfsPath + "/" + today
+    println("hdfsWholePath: " + hdfsAbsolutePath)
 
-    if (FileSystem.get(new URI(hdfsWholePath), spark.sparkContext.hadoopConfiguration).exists(new Path(hdfsWholePath))) {
+    if (FileSystem.get(new URI(hdfsAbsolutePath), spark.sparkContext.hadoopConfiguration).exists(new Path(hdfsAbsolutePath))) {
       val dfFromHDFS = spark
         .read
         .format("csv")
         .option("header", "true")
         .schema(productsSchema)
-        //.option("inferSchema", "true")
-        .load(hdfsWholePath)
+        .load(hdfsAbsolutePath)
 
       println("dfFromHDFS schema:")
       dfFromHDFS.printSchema()
@@ -74,26 +73,20 @@ class ProductsFromHDFSToHive(hdfsPath: String, hiveTableName: String) {
         .drop("invoice_date")
         .withColumnRenamed("dateOnly", "date")
 
-      // CAST unit_price to double
-      val dfProductsCast = dfProductsWithDateOnly
-        .withColumn("unit_price_decimal", dfProductsWithDateOnly.col("unit_price").cast(DecimalType(8, 2)))
-        .drop(col("unit_price"))
-        .withColumnRenamed("unit_price_decimal", "unit_price")
-
-      //dfProductsCast
+      // later, I will be deleting products on HDFS as they're taken to be saved to Hive table
       //val fileSystem = FileSystem.get(spark.sparkContext.hadoopConfiguration)
       //val srcPath = new Path(hdfsPath)
       //fileSystem.delete(srcPath, true)
       dfProductsWithDateOnly
     }
     else {
-      println(hdfsWholePath + " does not exist!")
+      println(hdfsAbsolutePath + " does not exist!")
       val dfEmpty = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], productsSchema)
       dfEmpty
     }
   }
 
-  def saveDataframeToHDFS(dfForHive: DataFrame): Unit = {
+  def saveDataframeToHive(dfForHive: DataFrame): Unit = {
     dfForHive.write
       .mode(SaveMode.Append)
       .format("hive")
@@ -113,7 +106,7 @@ class ProductsFromHDFSToHive(hdfsPath: String, hiveTableName: String) {
     val twoHoursAgoInt = nowHoursInt - 2
     val threeHoursAgoInt = nowHoursInt - 3
     val hoursList: List[Int] = threeHoursAgoInt :: twoHoursAgoInt :: previousHourInt :: nowHoursInt :: Nil
-    // OVO JE SAMO ZA OVAJ I PRETHODNI SAT, POSLE NAPRAVITI ZA OVAJ I PRETHODNA 3 SATA!!!
+    // This is only for actual and previous hour, later I will implement for actual and 3 previous hours
 
     val hiveTableName = "product"
 
@@ -136,7 +129,6 @@ class ProductsFromHDFSToHive(hdfsPath: String, hiveTableName: String) {
 
         dfForHive.write
           .mode(SaveMode.Append)
-          //.partitionBy("dateonly")
           .saveAsTable(hiveTableName)
 
         import org.apache.hadoop.conf.Configuration
@@ -160,13 +152,13 @@ object ProductsFromHDFSToHive {
     val hdfsProductsPath = configHDFS.getString("hdfsProductInfoPath")
     val hiveTablePathPrefix = configHive.getString("hiveTablesPathPrefix")
     val productHiveTableName = configHive.getString("productTableName")
-    val wholeHiveTablePath = hiveTablePathPrefix + productHiveTableName
+    val absoluteHiveTablePath = hiveTablePathPrefix + productHiveTableName
 
     val productsFromHDFSToHive = new ProductsFromHDFSToHive(hdfsProductsPath, productHiveTableName)
     val dfForHive = productsFromHDFSToHive.getDataframeFromHDFSByGivenDate
-    println("dfForHive count: " + dfForHive.count())
-    println("wholeHiveTablePath: " + wholeHiveTablePath)
-    println("hiveTableName: " + productHiveTableName)
-    productsFromHDFSToHive.saveDataframeToHDFS(dfForHive)
+    //println("dfForHive count: " + dfForHive.count())
+    //println("absoluteHiveTablePath: " + absoluteHiveTablePath)
+    //println("hiveTableName: " + productHiveTableName)
+    productsFromHDFSToHive.saveDataframeToHive(dfForHive)
   }
 }

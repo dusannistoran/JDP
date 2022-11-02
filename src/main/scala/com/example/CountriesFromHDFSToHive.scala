@@ -49,8 +49,8 @@ class CountriesFromHDFSToHive(hdfsPath: String, hiveTablePath: String) {
 
     val today = new SimpleDateFormat("dd-MM-yyyy").format(new Date())
     println("hdfsPath: " + hdfsPath)
-    val hdfsWholePath = hdfsPath + "/" + today
-    println("hdfsWholePath: " + hdfsWholePath)
+    val hdfsAbsolutePath = hdfsPath + "/" + today
+    println("hdfsAbsolutePath: " + hdfsAbsolutePath)
 
     val dfCountriesFromHDFS = spark
       .read
@@ -60,14 +60,14 @@ class CountriesFromHDFSToHive(hdfsPath: String, hiveTablePath: String) {
       .load(hdfsPath)
 
     val dfCountriesFromHDFSDistinct = dfCountriesFromHDFS.distinct()
-      //.withColumnRenamed("CountryID", "country_id")
-      //.withColumnRenamed("CountryName", "country_name")
     println("dfCountriesFromHDFSDistinct:")
     dfCountriesFromHDFSDistinct.show()
     println("dfCountriesFromHDFSDistinct count: " + dfCountriesFromHDFSDistinct.count())
 
     println("hiveTablePath: " + hiveTablePath)
     spark.catalog.refreshTable("country")
+
+    // reading country Hive table
     val originalHiveCountriesTable = spark.read
       .format("parquet")
       .schema(schema)
@@ -76,25 +76,17 @@ class CountriesFromHDFSToHive(hdfsPath: String, hiveTablePath: String) {
     println("originalHiveCountriesTable:")
     originalHiveCountriesTable.show()
 
-    val originalRenamed = originalHiveCountriesTable
-      //.withColumnRenamed("CountryID", "country_id")
-      //.withColumnRenamed("CountryName", "country_name")
-
+    // getting the difference between new countries and countries already stored in country Hive table
     val onlyNewCountries = dfCountriesFromHDFSDistinct
-      .join(originalRenamed, Seq("country_id"), "leftanti")
+      .join(originalHiveCountriesTable, Seq("country_id"), "leftanti")
     println("onlyNewCountries:")
     onlyNewCountries.show()
 
-      //val onlyNewCountriesWithCurrentTime = onlyNewCountries
-      //  .withColumn("current_time", expr("reflect('java.time.LocalDateTime', 'now')"))
-
+    // appending the difference into country Hive table
     onlyNewCountries.write
       .mode(SaveMode.Append)
-        //.partitionBy("InvoiceDate")
       .format("parquet")
-        //.partitionBy("current_time")
       .saveAsTable(countryHiveTable)
-
   }
 }
 
@@ -110,10 +102,9 @@ object CountriesFromHDFSToHive {
     val hiveCountriesTableWholePath = hiveTablesPathPrefix + hiveCountriesTableName
 
     val today = new SimpleDateFormat("dd-MM-yyyy").format(new Date())
-    //val todayUnderscores = new SimpleDateFormat("dd_MM_yyyy").format(new Date())
-    val hdfsWholePath: String = hdfsCountriesPath + "/" + today
+    val hdfsAbsolutePath: String = hdfsCountriesPath + "/" + today
 
-    val countriesFromHDFSToHive = new CountriesFromHDFSToHive(hdfsWholePath, hiveCountriesTableWholePath)
+    val countriesFromHDFSToHive = new CountriesFromHDFSToHive(hdfsAbsolutePath, hiveCountriesTableWholePath)
     countriesFromHDFSToHive.readFromHDFSAndInsertNewCountriesToHiveTable(hiveCountriesTableName)
   }
 }

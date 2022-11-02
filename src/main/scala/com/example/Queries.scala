@@ -134,7 +134,7 @@ object Queries {
     usersWhoHavePlacedOneOrder.show()
     println("usersWhoHavePlacedOneOrder count: " + usersWhoHavePlacedOneOrder.count())
 
-    
+
     // HOW MANY USERS HAVE PLACED MORE THAN ONE ORDER
     val usersWhoHavePlacedMoreThanOneOrder = dfFromPostgres
       .filter(col("customer_id").isNotNull)

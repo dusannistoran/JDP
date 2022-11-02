@@ -44,10 +44,10 @@ class ProductsFromLocalToHDFS(localPath: String, hdfsPath: String) {
 
     val today = LocalDate.now()
     val formatterDate = DateTimeFormatter.ofPattern("M/d/yyyy")
-    //val todayFormattedString: String = today.format(formatterDate)
     val csvToday = today.minusDays(differenceInDays)
     val csvTodayFormattedString: String = csvToday.format(formatterDate)
 
+    // all products from whole csv file
     val dfWholeCsvFile = spark
       .read
       .format("csv")
@@ -55,6 +55,7 @@ class ProductsFromLocalToHDFS(localPath: String, hdfsPath: String) {
       .schema(productsSchema)
       .load(localPath)
 
+    // products filtered by date: today - differenceInDays
     val dfOnlyAkaToday = dfWholeCsvFile.filter(col("InvoiceDate").startsWith(csvTodayFormattedString))
     println("dfOnlyAkaToday:")
     dfOnlyAkaToday.show()
@@ -69,7 +70,7 @@ class ProductsFromLocalToHDFS(localPath: String, hdfsPath: String) {
     val today = LocalDate.now()
     val formatterDate = DateTimeFormatter.ofPattern("M/d/yyyy")
     val todayFormattedString: String = today.format(formatterDate)
-    val csvToday = today.minusDays(4349)
+    val csvToday = today.minusDays(differenceInDays)
     val csvTodayFormattedString: String = csvToday.format(formatterDate)
 
     val today2 = new SimpleDateFormat("M/d/yyyy").format(new Date())
@@ -83,6 +84,7 @@ class ProductsFromLocalToHDFS(localPath: String, hdfsPath: String) {
     println("csvTodayFormattedString: " + csvTodayFormattedString)
     println("nowHours: " + nowHours)
 
+    // all products from whole csv file
     val dfWholeCsvFile = spark
       .read
       .format("csv")
@@ -90,11 +92,13 @@ class ProductsFromLocalToHDFS(localPath: String, hdfsPath: String) {
       .schema(productsSchema)
       .load(localPath)
 
+    // products filtered by date: today - differenceInDays
     val dfOnlyAkaToday = dfWholeCsvFile.filter(col("InvoiceDate").startsWith(csvTodayFormattedString))
     println("dfOnlyAkaToday:")
     dfOnlyAkaToday.show()
     println("dfOnlyAkaToday count: " + dfOnlyAkaToday.count())
 
+    // products filtered by actual hour
     val splitColInvoiceDate = split(dfOnlyAkaToday.col("InvoiceDate"), " ")
     val dfTimeOnly = dfOnlyAkaToday
       .withColumn("dateOnly", splitColInvoiceDate.getItem(0))
@@ -138,12 +142,12 @@ object ProductsFromLocalToHDFS {
     val hdfsProductsPath: String = configHDFS.getString("hdfsProductInfoPath")
 
     val today = new SimpleDateFormat("dd-MM-yyyy").format(new Date())
-    //val hdfsWholePath: String = hdfsProductsPath + "/" + today + "/" + nowHours
-    val hdfsWholePath: String = hdfsProductsPath + "/" + today
+    //val hdfsAbsolutePath: String = hdfsProductsPath + "/" + today + "/" + nowHours
+    val hdfsAbsolutePath: String = hdfsProductsPath + "/" + today
     println("csvProductsPath: " + csvProductsPath)
-    println("hdfsWholePath: " + hdfsWholePath)
+    println("hdfsWholePath: " + hdfsAbsolutePath)
 
-    val productsFromLocalToHDFS = new ProductsFromLocalToHDFS(csvProductsPath, hdfsWholePath)
+    val productsFromLocalToHDFS = new ProductsFromLocalToHDFS(csvProductsPath, hdfsAbsolutePath)
     val dfFromCsv = productsFromLocalToHDFS.getDataframeFromLocalByGivenDate
     productsFromLocalToHDFS.transformDataframeAndSaveToHDFS(dfFromCsv)
   }

@@ -5,7 +5,6 @@ import Utils.getNowHoursUTC
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.conf.Configuration
-import org.apache.spark.sql.functions.{col, expr}
 import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 import org.apache.spark.sql.types.{IntegerType, StringType, StructField, StructType, TimestampType}
 import org.slf4j.LoggerFactory
@@ -56,18 +55,6 @@ class InvoicesFromHDFSToHive(hdfsPath: String, hiveTableName: String) {
       StructField("quantity", IntegerType, nullable = true) :: Nil
   )
 
-  /*
-  def getNowHoursUTC: String = {
-
-    val now: LocalTime = LocalTime.now()
-    val formatterTime = DateTimeFormatter.ofPattern("H:mm")
-    val nowFormattedStr: String = now.format(formatterTime)
-    val nowFormattedStrings: Array[String] = nowFormattedStr.split(":")
-    val nowHoursStr: String = nowFormattedStrings(0)
-    nowHoursStr
-  }
-   */
-
   def getDataframeFromHDFSByGivenHours(nowHours: String): Unit = {
 
     val nowHoursStr: String = getNowHoursUTC
@@ -87,6 +74,7 @@ class InvoicesFromHDFSToHive(hdfsPath: String, hiveTableName: String) {
       FileSystem.get(conf)
     }
 
+    // Getting all files names on HDFS
     val files = fileSystem.listFiles(new Path(hdfsPath), true)
     val filenames = ListBuffer[String]()
     val csvFilenames = filenames.filter(filename => filename.endsWith(".csv"))
@@ -95,8 +83,10 @@ class InvoicesFromHDFSToHive(hdfsPath: String, hiveTableName: String) {
     println("filenames size: " + filenames.size)
     println("csvFilenames size: " + csvFilenames.size)
 
+    // Filtering only .csv files
     filenames.filter(filename => filename.endsWith(".csv")).foreach({ file =>
-    //csvFilenames.foreach({ csvFile =>
+
+      // reading each .csv file
       val dfFromHDFS = spark
         .read
         .format("csv")
@@ -111,26 +101,12 @@ class InvoicesFromHDFSToHive(hdfsPath: String, hiveTableName: String) {
       println("dfFromHDFS schema:")
       dfFromHDFS.printSchema()
 
-
-
-      //val dfDrop = dfFromHDFS
-      //  .drop("dateOnly")
-      //  .drop("timeOnly", "hours")
-      //.drop(col("hours")
-      //.show()
-
-
-      // CASTING COLUMN QUANTITY FROM STRING TO INT
-      // select(col("quantity").cast(IntegerType).alias("quantity"))
-      //val dfCast = dfDrop
-      //  .withColumn("quantity_int", dfFromHDFS.col("quantity").cast(IntegerType))
-      //  .drop(col("quantity"))
-      //  .withColumnRenamed("quantity_int", "quantity")
-      //  .withColumn("current_time", expr("reflect('java.time.LocalDateTime', 'now')"))
+      // and write it to main Hive table
       dfFromHDFS.write
         .mode(SaveMode.Append)
         .saveAsTable(hiveTableName)
     })
+
     println("hours strings:")
     val hoursStrings = filenames.map({filename =>
       val filenameStrings = filename.split("/")
@@ -140,6 +116,8 @@ class InvoicesFromHDFSToHive(hdfsPath: String, hiveTableName: String) {
     val hoursStringsSet = hoursStrings.toSet
     println("hoursStringsSet:")
     hoursStringsSet.foreach(println)
+
+    // deleting all files on HDFS; they are represented by hour
     hoursStringsSet.foreach({ hour =>
       val hdfsAbsolutePath = hdfsPath + "/" + hour
       val srcPath = new Path(hdfsAbsolutePath)
@@ -155,7 +133,7 @@ object InvoicesFromHDFSToHive {
     val configHDFS: Config = ConfigFactory.load().getConfig("application.hdfs")
     val configHive: Config = ConfigFactory.load().getConfig("application.hive")
     val hdfsInvoicesPath: String = configHDFS.getString("hdfsInvoicesPath")
-    val hiveTablesPathPrefix = configHive.getString("hiveTablesPathPrefix")
+    //val hiveTablesPathPrefix = configHive.getString("hiveTablesPathPrefix")
     val hiveMainTableName = configHive.getString("invoicesTableName")
 
     val invoicesFromHDFSToHive = new InvoicesFromHDFSToHive(hdfsInvoicesPath, hiveMainTableName)

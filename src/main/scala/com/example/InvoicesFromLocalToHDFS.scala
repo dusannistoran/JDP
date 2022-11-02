@@ -108,7 +108,7 @@ class InvoicesFromLocalToHDFS(localPath: String, hdfsPath: String) {
 
     val nowHours: String = getNowHoursUTC
     val hdfsAbsolutePath: String = hdfsPath + "/" + nowHours
-    
+
     dfForHDFS.write
       .mode("overwrite")
       .option("header", "true")

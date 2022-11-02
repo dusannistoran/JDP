@@ -60,10 +60,13 @@ class Join(hivePath: String) {
 
   def getDataframeInvoices(invoicesHiveTableName: String): DataFrame = {
 
+    // getting all invoices from main Hive table
     val dfAllInvoicesFromHive = spark.read
       .parquet(hiveTablePathPrefix + invoicesHiveTableName)
     val dfAllInvoicesFromHiveWithDateString = dfAllInvoicesFromHive
       .withColumn("invoice_date_string", dfAllInvoicesFromHive.col("invoice_date").cast(StringType))
+
+    // filtering invoices by date: today - differenceInDays
     val dfInvoicesForOnlyToday = dfAllInvoicesFromHiveWithDateString
       .filter(col("invoice_date_string").startsWith(hiveTodayFormattedString))
       .drop("invoice_date_string")
@@ -72,7 +75,6 @@ class Join(hivePath: String) {
     println(s"dfInvoicesForOnlyToday ($hiveTodayFormattedString) count: " + dfInvoicesForOnlyToday.count())
     println(s"dfInvoicesForOnlyToday ($hiveTodayFormattedString) schema:")
     dfInvoicesForOnlyToday.printSchema()
-    //dfInvoicesForOnlyToday
 
     val currentTimeHoursStr: String = getNowHoursUTC
     println("currentTimeHours: " + currentTimeHoursStr)
@@ -84,6 +86,8 @@ class Join(hivePath: String) {
     val twoHoursAgoStr: String = twoHoursAgoInt + ""
     val hourAgoStr: String = hourAgoInt + ""
 
+    // filtering invoices by current time; previous hour and current hour;
+    // later I'll modify this and involve 3 hours ago, 2 hours ago, hour ago and current hour invoices
     val dfFilteredByHour = dfInvoicesForOnlyToday
       .filter(hour(col("invoice_date")) === currentTimeHoursStr ||
               hour(col("invoice_date")) === hourAgoStr)
@@ -98,11 +102,14 @@ class Join(hivePath: String) {
 
   def getAndTransformDataframeProducts(productHiveTableName: String): DataFrame = {
 
+    // getting all products from product Hive table
     val dfAllProductsFromHive = spark.sql(s"select * from $productHiveTableName")
     val dfAllProductsFromHiveWithDateString = dfAllProductsFromHive
       .withColumn("date_string", dfAllProductsFromHive.col("date").cast(StringType))
+
+    // filtering invoices by date: today - differenceInDays
     val dfProductsForOnlyToday = dfAllProductsFromHiveWithDateString
-      .filter(col("date_string").startsWith(hiveTodayFormattedString)) // ili raditi za yesterday
+      .filter(col("date_string").startsWith(hiveTodayFormattedString))
       .drop("date_string")
     println(s"dfProductsForOnlyToday ($hiveTodayFormattedString):")
     dfProductsForOnlyToday.show()
@@ -110,21 +117,14 @@ class Join(hivePath: String) {
     println(s"dfProductsForOnlyToday ($hiveTodayFormattedString) schema:")
     dfProductsForOnlyToday.printSchema()
 
+    // I have to aggregate products, because there are products with different unit_price within a date;
+    // This way, I take first only product unit_price
     val dfProductsAggregated = dfProductsForOnlyToday
-      //.groupBy("stock_code", "date", "product_description")
       .groupBy("stock_code", "date")
       .agg(
         first("unit_price") alias "first_unit_price",
         first("product_description") alias "first_product_description")
-      //.withColumn("product_description_1", dfProductsForOnlyToday.col("product_description"))
 
-
-    //println("dfProductsAggregated:")
-    //dfProductsGroupedAvgUnitPrice.show(1351)
-    //dfProductsAggregated.show()
-    //println("dfProductsAggregated count: " + dfProductsAggregated.count())
-    //println("dfProductsAggregated schema:")
-    //dfProductsAggregated.printSchema()
 
     val dfProductsAggregatedRenamed = dfProductsAggregated
       .withColumnRenamed("first_unit_price", "unit_price")
@@ -140,8 +140,7 @@ class Join(hivePath: String) {
 
   def getDataframeCountries(countriesHiveTableName: String): DataFrame = {
 
-    //val dfAllCountriesFromHive = spark.read
-    //  .parquet(hiveTablePathPrefix + countriesHiveTableName)
+    // getting all countries from country Hive table
     val dfAllCountriesFromHive = spark.sql(s"select * from $countriesHiveTableName")
     println("dfAllCountriesFromHive:")
     dfAllCountriesFromHive.show()
@@ -154,20 +153,24 @@ class Join(hivePath: String) {
 
   def joinAllDataframes(dfInvoices: DataFrame, dfProducts: DataFrame, dfCountries: DataFrame): DataFrame = {
 
+    // Building the column with only date (as opposed to date and time)
     val dfInvoicesWithDate = dfInvoices
       .withColumn("date", to_date(dfInvoices.col("invoice_date"), "M/d/yyyy"))
-    //println("dfInvoicesWithDate schema:")
-    //dfInvoicesWithDate.printSchema()
+
+    // Join invoices and products, by stock_code and date
     val joinedInvoicesAndProducts = dfInvoicesWithDate.join(
       dfProducts, Seq("stock_code", "date"), "leftouter"
     )
     println("joinedInvoicesAndProducts count: " + joinedInvoicesAndProducts.count())
+
+    // Building the columns: country_id, region_id and total_price (quantity * unit_price)
     val splitColCountry = split(joinedInvoicesAndProducts.col("country"), "-")
     val joinedInvoicesAndProductsCountryIdRegionId = joinedInvoicesAndProducts
       .withColumn("country_id", splitColCountry.getItem(0))
       .withColumn("region_id", splitColCountry.getItem(1))
       .withColumn("total_price", (col("quantity") * col("unit_price")).cast(DecimalType(8, 2)))
 
+    // Join previous joined table and countries table, by country_id
     val joinedAll = joinedInvoicesAndProductsCountryIdRegionId.join(
       dfCountries, Seq("country_id"), "inner"
     )
@@ -183,7 +186,6 @@ class Join(hivePath: String) {
       .option("dbtable", "joined")
       .option("user", s"$postgresUser")
       .option("password", s"$postgresPassword")
-      //.option("truncate", "true")
       .mode(SaveMode.Append)
       .save()
   }

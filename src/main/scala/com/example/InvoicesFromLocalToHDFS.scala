@@ -45,18 +45,6 @@ class InvoicesFromLocalToHDFS(localPath: String, hdfsPath: String) {
       StructField("Country", StringType, nullable = true) :: Nil
   )
 
-  /*
-  def getNowHoursUTC: String = {
-
-    val now: LocalTime = LocalTime.now()
-    val formatterTime = DateTimeFormatter.ofPattern("H:mm")
-    val nowFormattedStr: String = now.format(formatterTime)
-    val nowFormattedStrings: Array[String] = nowFormattedStr.split(":")
-    val nowHoursStr: String = nowFormattedStrings(0)
-    nowHoursStr
-  }
-   */
-
   // pick up invoices hour by hour, according to current time
   def getDataframeFromLocalByGivenDateAndHour(nowHours: String): DataFrame = {
 
@@ -66,16 +54,10 @@ class InvoicesFromLocalToHDFS(localPath: String, hdfsPath: String) {
     val todayFormattedStr: String = today.format(formatterDate)
     val csvToday: LocalDate = today.minusDays(differenceInDays)
     val csvTodayFormattedStr: String = csvToday.format(formatterDate)
-    //val now: LocalTime = LocalTime.now()
-    //val formatterTime = DateTimeFormatter.ofPattern("H:mm")
-    //val nowFormattedStr: String = now.format(formatterTime)
-    //val nowFormattedStrings: Array[String] = nowFormattedStr.split(":")
-    //val nowHoursStr: String = nowFormattedStrings(0)
     println("today (String): " + todayFormattedStr)
     println("csvToday (String): " + csvTodayFormattedStr)
-    //println("now (String): " + nowFormattedStr)
-    //println("now hours UTC (String): " + nowHoursStr)
 
+    // all invoices from whole csv file
     val dfWholeCsvFile = spark
       .read
       .format("csv")
@@ -83,6 +65,7 @@ class InvoicesFromLocalToHDFS(localPath: String, hdfsPath: String) {
       .schema(invoicesSchema)
       .load(localPath)
 
+    // invoices filtered by date: today - differenceInDays
     val dfOnlyAkaToday = dfWholeCsvFile.filter(col("InvoiceDate").startsWith(csvTodayFormattedStr))
     println("dfOnlyAkaToday:")
     dfOnlyAkaToday.show()
@@ -97,8 +80,8 @@ class InvoicesFromLocalToHDFS(localPath: String, hdfsPath: String) {
     dfTimeOnly.show()
     println("dfTimeOnly count: " + dfTimeOnly.count())
 
+    // invoices filtered by current time, that is, current hour
     val nowHoursString: String = nowHours
-    //val dfNowHoursOnly = dfTimeOnly.filter(col("hours").equalTo(nowHoursStr))
     println("now hours UTC (String): " + nowHoursString)
     val dfNowHoursOnly = dfTimeOnly.filter(col("hours").equalTo(nowHoursString))
     println("dfNowHoursOnly:")
@@ -125,7 +108,7 @@ class InvoicesFromLocalToHDFS(localPath: String, hdfsPath: String) {
 
     val nowHours: String = getNowHoursUTC
     val hdfsAbsolutePath: String = hdfsPath + "/" + nowHours
-    //val hdfsAbsolutePath: String = hdfsPath + "/" + ((nowHours.toInt - 1) + "")
+    
     dfForHDFS.write
       .mode("overwrite")
       .option("header", "true")

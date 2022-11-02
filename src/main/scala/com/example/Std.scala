@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory
 
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import scala.collection.mutable
 import scala.compat.Platform.EOL
 
 //import com.spark.mail.Email
@@ -176,17 +177,18 @@ object Std {
     def createEmailBody(df: DataFrame): String = {
 
 
-      var text: String = ""
+      var text: mutable.StringBuilder = new mutable.StringBuilder("")
       val data = df.rdd
         .map(row => {
           row.mkString(" | ") + "\r\n"
         }).collect()
-      data.foreach(line => text = text + line + "\r\n")
+      data.foreach(line => text.append(text + line + "\r\n"))
 
+      val textStr: String = text.toString()
       println("text: ")
-      println(text)
+      println(textStr)
 
-      text
+      textStr
     }
 
 

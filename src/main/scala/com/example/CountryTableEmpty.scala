@@ -35,6 +35,7 @@ class CountryTableEmpty(hiveTablePath: String) {
 
   def createHiveTable(hiveTableName: String): Unit = {
 
+    // deleting any countries Hive table if it exists
     val fileSystem = FileSystem.get(spark.sparkContext.hadoopConfiguration)
     val srcPath = new Path(hiveTablePath)
     if (fileSystem.exists(srcPath)) {
@@ -60,14 +61,12 @@ object CountryTableEmpty {
 
   def main(args: Array[String]): Unit = {
 
-    //val configHDFS: Config = ConfigFactory.load().getConfig("application.hdfs")
     val configHive: Config = ConfigFactory.load().getConfig("application.hive")
-    //val hdfsCountriesPath: String = configHDFS.getString("hdfsCountriesPath")
     val hiveTablesPathPrefix: String = configHive.getString("hiveTablesPathPrefix")
     val hiveCountriesTableName: String = configHive.getString("countriesTableName")
-    val hiveCountriesTableWholePath = hiveTablesPathPrefix + hiveCountriesTableName
+    val hiveCountriesTableAbsolutePath = hiveTablesPathPrefix + hiveCountriesTableName
 
-    val countryTableEmpty = new CountryTableEmpty(hiveCountriesTableWholePath)
+    val countryTableEmpty = new CountryTableEmpty(hiveCountriesTableAbsolutePath)
     countryTableEmpty.createHiveTable(hiveCountriesTableName)
 
   }

@@ -35,6 +35,7 @@ class ProductTableEmpty(hiveTableName: String) {
 
   def createHiveTable(hdfsPath: String): Unit = {
 
+    // deleting any products on HDFS if they exist
     val fileSystem = FileSystem.get(spark.sparkContext.hadoopConfiguration)
     val srcPath = new Path(hdfsPath)
     if (fileSystem.exists(srcPath)) {
@@ -52,7 +53,6 @@ class ProductTableEmpty(hiveTableName: String) {
 
     import org.apache.spark.sql.Row
     val dfEmpty = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], productSchema)
-    //.withColumn("current_time", expr("reflect('java.time.LocalDateTime', 'now')"))
 
     dfEmpty.write
       .mode(SaveMode.Overwrite)

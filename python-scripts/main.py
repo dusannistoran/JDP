@@ -21,12 +21,6 @@ with open(f'{data_origin_csv_filepath}', 'r', encoding="ISO-8859-1") as csv_file
     count = 0
 
     for line in csv_reader:
-        # count += 1
-        # if count == 10:
-        #    break
-        # else:
-        # print(line)
-        # print('line length:', len(line))
         data_origin_dict["InvoiceNo"].append(line["InvoiceNo"])
         data_origin_dict["StockCode"].append(line["StockCode"])
         data_origin_dict["Description"].append(line["Description"])
@@ -36,6 +30,7 @@ with open(f'{data_origin_csv_filepath}', 'r', encoding="ISO-8859-1") as csv_file
         data_origin_dict["CustomerID"].append(line["CustomerID"])
         data_origin_dict["Country"].append(line["Country"])
 
+# Just checking dictionary arrays' lengths
 print('data_origin_dict["InvoiceNo"] length:', len(data_origin_dict["InvoiceNo"]))
 print('data_origin_dict["StockCode"] length:', len(data_origin_dict["StockCode"]))
 print('data_origin_dict["Description"] length:', len(data_origin_dict["Description"]))
@@ -44,86 +39,6 @@ print('data_origin_dict["InvoiceDate"] length:', len(data_origin_dict["InvoiceDa
 print('data_origin_dict["UnitPrice"] length:', len(data_origin_dict["UnitPrice"]))
 print('data_origin_dict["CustomerID"] length:', len(data_origin_dict["CustomerID"]))
 print('data_origin_dict["Country"] length:', len(data_origin_dict["Country"]))
-
-### InvoiceNo #######################################
-# print(data_origin_dict["InvoiceNo"])
-
-'''
-invoiceNo_not_six_chars_length = []
-for invoiceNo in data_origin_dict["InvoiceNo"]:
-    if invoiceNo.startswith('C'):
-        invoiceNo_not_six_chars_length.append(invoiceNo)
-
-print('invoiceNo_not_six_chars_length items:')
-for item in invoiceNo_not_six_chars_length:
-    print(item)
-print('invoiceNo_not_six_chars_length items length:', len(invoiceNo_not_six_chars_length))
-'''
-
-### StockCode ###################################################################
-
-
-### Description #################################################################
-
-
-### Quantity ####################################################################
-
-
-### InvoiceDate #################################################################
-
-
-### UnitPrice ###################################################################
-
-
-### CustomerID ##################################################################
-'''
-print(data_origin_dict["CustomerID"])
-print('data_origin_dict["CustomerID"] len:', len(data_origin_dict["CustomerID"]))
-customerID_not_five_chars_length = []
-for customerID in data_origin_dict["CustomerID"]:
-    if customerID == '':
-        customerID_not_five_chars_length.append(customerID)
-print('customerID_not_five_chars_length len:', len(customerID_not_five_chars_length))
-'''
-
-'''
-indexes_where_customerID_is_null = []
-# This way, we get ALL indexes of occurrences!!!!
-indexes_where_customerID_is_null = [i for i, x in enumerate(data_origin_dict["CustomerID"]) if x == '']
-invoiceNos_where_customerID_is_null = []
-for customerID_null_index in indexes_where_customerID_is_null:
-    invoiceNos_where_customerID_is_null.append(data_origin_dict["InvoiceNo"][customerID_null_index])
-print('invoiceNos_where_customerID_is_null:')
-for invoiceNo in invoiceNos_where_customerID_is_null:
-    print(invoiceNo)
-print('invoiceNos_where_customerID_is_null len:', len(invoiceNos_where_customerID_is_null))
-print('invoiceNos_where_customerID_is_null DISTINCT len:', len(set(invoiceNos_where_customerID_is_null)))
-
-print('indexes_where_customerID_is_null len:', len(indexes_where_customerID_is_null))
-
-newInvoiceNos = []
-newCustomerID = 100000
-
-print("At the start, newInvoiceNos len is:", len(newInvoiceNos))
-for index in indexes_where_customerID_is_null:
-    invoiceNo = data_origin_dict["InvoiceNo"][index]
-    if invoiceNo not in newInvoiceNos:
-        newCustomerID += 1
-        data_origin_dict["CustomerID"][index] = str(newCustomerID)
-        newInvoiceNos.append(invoiceNo)
-    else:
-        data_origin_dict["CustomerID"][index] = str(newCustomerID)
-print("At the end , newInvoiceNos len is:", len(newInvoiceNos))
-print('Now: ')
-customerID_not_five_chars_length = []
-for customerID in data_origin_dict["CustomerID"]:
-    if customerID == '':
-        customerID_not_five_chars_length.append(customerID)
-print('customerID_not_five_chars_length len:', len(customerID_not_five_chars_length))
-print("Now:")
-for customerID in data_origin_dict["CustomerID"]:
-    print(customerID)
-'''
 
 ### Country #####################################################################
 

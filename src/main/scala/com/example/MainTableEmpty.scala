@@ -73,5 +73,6 @@ object MainTableEmpty {
 
     val mainTableEmpty = new MainTableEmpty(invoicesTableName)
     mainTableEmpty.createHiveTable(hdfsPathPrefix + invoicesTableName)
+
   }
 }

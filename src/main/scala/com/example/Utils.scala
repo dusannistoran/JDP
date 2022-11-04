@@ -47,10 +47,23 @@ object Utils {
     "7777" -> "Unspecified"
   )
 
+  val regionsMap: Map[String, String] = Map(
+    "1" -> "North",
+    "2" -> "South",
+    "3" -> "East",
+    "4" -> "West",
+    "5" -> "Center",
+    "6" -> "Islands or peripheral territories"
+  )
+
   import org.apache.spark.sql.functions.udf
 
   def extractCountryName: UserDefinedFunction = {
     udf((key: String) => countriesMap.get(key))
+  }
+
+  def extractRegionName: UserDefinedFunction = {
+    udf((key: String) => regionsMap.get(key))
   }
 
   def getNowHoursUTC: String = {

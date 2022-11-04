@@ -12,6 +12,7 @@ bash-scripts/second.txt
 bash-scripts/test-fast-mode.sh
 docker/invoices
 docker/metastore-postgresql
+docker/incubator-superset
 src/test
 src/main/resources/csvs/note
 src/main/resources/csvs/note2

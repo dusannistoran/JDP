@@ -11,8 +11,6 @@ services:
       - CLUSTER_NAME=hive
     env_file:
       - ./hadoop.env
-      #- ./hadoop-hive.env
-      #- $PWD/conf.dist/hadoop.env
     ports:
       - 9870:9870
       - 9000:9000
@@ -26,8 +24,6 @@ services:
       - hadoop_datanode1:/hadoop/dfs/data
     env_file:
       - ./hadoop.env
-      #- ./hadoop-hive.env
-      #- $PWD/conf.dist/hadoop.env
 
   datanode2:
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
@@ -38,8 +34,6 @@ services:
       - hadoop_datanode2:/hadoop/dfs/data
     env_file:
       - ./hadoop.env
-      #- ./hadoop-hive.env
-      #- $PWD/conf.dist/hadoop.env
 
   datanode3:
     image: bde2020/hadoop-datanode:2.0.0-hadoop3.2.1-java8
@@ -50,8 +44,6 @@ services:
       - hadoop_datanode3:/hadoop/dfs/data
     env_file:
       - ./hadoop.env
-      #- ./hadoop-hive.env
-      #- $PWD/conf.dist/hadoop.env
     environment:
       SERVICE_PRECONDITION: "namenode:9870"
 
@@ -64,17 +56,13 @@ services:
       - PYSPARK_PYTHON=python3
     env_file:
       - ./hadoop.env
-      #- ./hadoop-hive.env
-      #- $PWD/conf.dist/hadoop.env
     volumes:
-      #- ../target/:/home/scala
       - ../:/home/scala
       - ../bash-scripts:/bash-scripts
       - ./tmp/postgres-driver/postgresql-42.2.6.jar:/postgres/postgres-driver
       - $PWD/tmp/hdfs-site.xml:/spark/conf/hdfs-site.xml
       - $PWD/tmp/core-site.xml:/spark/conf/core-site.xml
       - $PWD/tmp/hive-site.xml:/spark/conf/hive-site.xml
-      #- $PWD/table_data:/spark/bin/spark-warehouse
       - ../src/main/resources/csvs:/csvs
 
   spark-worker1:
@@ -87,17 +75,11 @@ services:
       - 18081:8081
     env_file:
       - ./hadoop.env
-      #- ./hadoop-hive.env
-      #- $PWD/conf.dist/hadoop.env
-    #volumes:
-    #  - $PWD/table_data:/spark/spark-warehouse
 
   hive-server:
     image: bde2020/hive:2.3.2-postgresql-metastore
     container_name: hive-server
     env_file:
-      #- ./hadoop-hive.env
-      #- $PWD/conf.dist/hadoop.env
       - ./hadoop.env
     environment:
       HIVE_CORE_CONF_javax_jdo_option_ConnectionURL: "jdbc:postgresql://hive-metastore/metastore"
@@ -105,15 +87,12 @@ services:
     ports:
       - 10000:10000
     volumes:
-      #- $PWD/table_data:/opt/hive-warehouse
       - $PWD/invoices:/invoices
 
   hive-metastore:
     image: bde2020/hive:2.3.2-postgresql-metastore
     container_name: hive-metastore
     env_file:
-      #- ./hadoop-hive.env
-      #- $PWD/conf.dist/hadoop.env
       - ./hadoop.env
     command: /opt/hive/bin/hive --service metastore
     environment:
@@ -156,16 +135,6 @@ services:
       - POSTGRES_PASSWORD=FoolishPassword
       - POSTGRES_USER=postgres
       - POSTGRES_DB=jdp
-  #pgadmin:
-  #  image: dpage/pgadmin4
-  #  container_name: pgadmin4_container
-  #  ports:
-  #    - "5050:80"
-  #  environment:
-  #    PGADMIN_DEFAULT_EMAIL: raj@nola.com
-  #    PGADMIN_DEFAULT_PASSWORD: admin
-  #  volumes:
-  #    - pgadmin-data:/var/lib/pgadmin
 
 volumes:
   hadoop_namenode: {}
@@ -175,4 +144,3 @@ volumes:
   hadoop_historyserver: {}
   postgres_driver: {}
   metadata_data: {}
-  #pgadmin-data: {}

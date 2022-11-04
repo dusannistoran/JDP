@@ -26,3 +26,4 @@ src/main/scala/com/example/InvoicesFromLocalToHDFSTest.scala
 src/main/scala/com/example/JoinFastMode.scala
 src/main/scala/com/example/Join2.scala
 src/main/scala/com/example/DataStudying.scala
+bash-scripts/.test-fast-mode.sh.swp

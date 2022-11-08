@@ -314,6 +314,7 @@ class Join(hivePath: String) {
     //val obj = new Email(s"$configEmail")
     val spark: SparkSession = SparkSession.builder().appName("Spark Mail Job").master("local[4]").getOrCreate()
     obj.sendMail(msg, spark.sparkContext.applicationId, "test", "R", "", "")
+
   }
 
   def writeDataframeToPostgres(dataframe: DataFrame): Unit = {

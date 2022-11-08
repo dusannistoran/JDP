@@ -2,9 +2,10 @@ package com.example
 
 import Utils.getNowHoursUTC
 import com.typesafe.config.{Config, ConfigFactory}
-import org.apache.spark.sql.functions.{avg, col, count, first, hour, lit, max, split, sqrt, sum, to_date}
-import org.apache.spark.sql.types.{DecimalType, DoubleType, StringType}
-import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
+import org.apache.spark.sql.expressions.Window
+import org.apache.spark.sql.functions.{avg, col, collect_list, count, element_at, first, hour, lit, max, size, sort_array, split, sqrt, sum, to_date}
+import org.apache.spark.sql.types.{DecimalType, DoubleType, IntegerType, StringType}
+import org.apache.spark.sql.{Column, DataFrame, SaveMode, SparkSession}
 import org.slf4j.LoggerFactory
 
 import java.io.File
@@ -204,14 +205,43 @@ class Join(hivePath: String) {
     withMeanDf.show()
     println("withMeanDf count: " + withMeanDf.count())
 
-    val joined: DataFrame = fromPostgresDf.join(
+    def median(inputList: List[Double]): Double = {
+      val count = inputList.size
+      if (count % 2 == 0) {
+        val l = count / 2 - 1
+        val r = l + 1
+        (inputList(l) + inputList(r)).toDouble / 2
+      } else
+        inputList(count / 2).toDouble
+    }
+
+    //val withMedianDf: DataFrame = fromPostgresDf
+    //  .select("stock_code", "quantity")
+    //  .groupBy("stock_code")
+    //  .agg(sort_array(collect_list("quantity")) alias "quantities")
+    //  .select("stock_code", element_at(col("quantities"), size(col("quantities")/2 + 1).cast(IntegerType)))
+
+
+    val byStockCode = Window.partitionBy("stock_code").orderBy("quantity")
+    val withMedianDf: DataFrame = fromPostgresDf
+      .withColumn("quantities", collect_list("quantity") over byStockCode)
+      .withColumn("qty_med", element_at(col("quantities"), (size(col("quantities"))/2 + 1).cast("int")))
+
+    val joined1: DataFrame = fromPostgresDf.join(
       withMeanDf, Seq("stock_code"), "inner"
     )
-    println("joined:")
-    joined.show()
-    println("joined count: " + joined.count())
+    println("joined1:")
+    joined1.show()
+    println("joined1 count: " + joined1.count())
 
-    val withStandardDeviation: DataFrame = joined
+    val joined2: DataFrame = fromPostgresDf.join(
+      withMedianDf, Seq("stock_code"), "inner"
+    )
+    println("joined2:")
+    joined2.show()
+    println("joined2 count: " + joined2.count())
+
+    val withStandardDeviation: DataFrame = joined1
       .select("stock_code", "quantity", "qty_avg")
       //.select("stock_code", "quantity")
       .groupBy("stock_code")
@@ -366,9 +396,9 @@ object Join {
     //obj.sendMail(msg, spark.sparkContext.applicationId, "test", "R", "", "")
 
 
-    join.sendEmail(forEmailDf)
+    //join.sendEmail(forEmailDf)
 
     println("\nSAVING TO POSTGRES")
-    join.writeDataframeToPostgres(joinedAll)
+    //join.writeDataframeToPostgres(joinedAll)
   }
 }

@@ -16,6 +16,8 @@ docker/incubator-superset
 src/test
 src/main/resources/csvs/note
 src/main/resources/csvs/note2
+src/main/resources/application.conf
+src/main/resources/application-mail.conf
 src/main/scala/com/example/InvoicesFromHDFSToHiveTest.scala
 src/main/scala/com/example/ProductsFromLocalToHDFSFastMode.scala
 src/main/scala/com/example/ProductsFromHDFSToHiveFastMode.scala
@@ -27,4 +29,6 @@ src/main/scala/com/example/InvoicesFromLocalToHDFSTest.scala
 src/main/scala/com/example/JoinFastMode.scala
 src/main/scala/com/example/Join2.scala
 src/main/scala/com/example/DataStudying.scala
+src/main/scala/com/example/Alarm.scala
+src/main/scala/com/example/StandardDeviation.scala
 bash-scripts/.test-fast-mode.sh.swp

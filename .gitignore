@@ -32,3 +32,4 @@ src/main/scala/com/example/DataStudying.scala
 src/main/scala/com/example/Alarm.scala
 src/main/scala/com/example/StandardDeviation.scala
 bash-scripts/.test-fast-mode.sh.swp
+..gitignore.swp

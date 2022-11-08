@@ -2,8 +2,8 @@ package com.example
 
 import Utils.getNowHoursUTC
 import com.typesafe.config.{Config, ConfigFactory}
-import org.apache.spark.sql.functions.{col, first, hour, split, to_date}
-import org.apache.spark.sql.types.{DecimalType, StringType}
+import org.apache.spark.sql.functions.{avg, col, count, first, hour, lit, max, split, sqrt, sum, to_date}
+import org.apache.spark.sql.types.{DecimalType, DoubleType, StringType}
 import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 import org.slf4j.LoggerFactory
 
@@ -13,12 +13,14 @@ import java.time.format.DateTimeFormatter
 
 // ./spark/bin/spark-submit --jars /home/scala/target/scala-2.12/jdp.jar --class "com.example.Join" --master local[4] /home/scala/target/scala-2.12/jdp_2.12-0.1.0-SNAPSHOT.jar
 // ./spark/bin/spark-submit --packages org.postgresql:postgresql:42.2.5 --jars /home/scala/target/scala-2.12/jdp.jar --class "com.example.Join" --master local[4] /home/scala/target/scala-2.12/jdp_2.12-0.1.0-SNAPSHOT.jar
+// ./spark/bin/spark-submit --packages org.postgresql:postgresql:42.2.5 --jars /home/scala/target/scala-2.12/jdp.jar,/home/scala/target/scala-2.12/Scala_Spark_Mail.jar --class "com.example.Join" --master local[4] /home/scala/target/scala-2.12/jdp_2.12-0.1.0-SNAPSHOT.jar
 
 class Join(hivePath: String) {
 
   val configSpark: Config = ConfigFactory.load().getConfig("application.spark")
   val configHive: Config = ConfigFactory.load().getConfig("application.hive")
   val configMisc: Config = ConfigFactory.load().getConfig("application.misc")
+  //val configEmail: Config = ConfigFactory.load("/home/scala/src/main/resources/application-mail.conf").getConfig("application-mail")
   val differenceInDays: Int = configMisc.getInt("differenceInDays")
   val sparkCores: String = configSpark.getString("master")
   val checkpoint: String = configSpark.getString("checkpointLocation")
@@ -177,9 +179,129 @@ class Join(hivePath: String) {
     joinedAll
   }
 
+  def extractInvoicesForEmail(joinedAllDf: DataFrame): DataFrame = {
+
+    // first, extract whole "old" data from Postgres
+    val fromPostgresDf = spark.read
+      .format("jdbc")
+      .option("driver", s"$postgresDriver")
+      .option("url", s"$postgresUrl")
+      .option("dbtable", "joined")
+      .option("user", s"$postgresUser")
+      .option("password", s"$postgresPassword")
+      .load()
+    println("fromPostgresDf:")
+    fromPostgresDf.show()
+    println("fromPostgresDf count: " + fromPostgresDf.count())
+
+    // then, calculate mean and standard deviation per stock_code for old Postgres data
+    val withMeanDf: DataFrame = fromPostgresDf
+      .select("stock_code", "quantity")
+      .groupBy("stock_code")
+      .agg(avg(col("quantity")) alias "qty_avg")
+      //.withColumnRenamed("qty_avg", "quantity")
+    println("withMeanDf:")
+    withMeanDf.show()
+    println("withMeanDf count: " + withMeanDf.count())
+
+    val joined: DataFrame = fromPostgresDf.join(
+      withMeanDf, Seq("stock_code"), "inner"
+    )
+    println("joined:")
+    joined.show()
+    println("joined count: " + joined.count())
+
+    val withStandardDeviation: DataFrame = joined
+      .select("stock_code", "quantity", "qty_avg")
+      //.select("stock_code", "quantity")
+      .groupBy("stock_code")
+      .agg(
+        sqrt(sum((col("quantity") - col("qty_avg")) * (col("quantity") - col("qty_avg"))) / count("stock_code"))
+          alias "standard_deviation"
+      , avg("quantity") alias "quantity_avg")
+    println("withStandardDeviation:")
+    withStandardDeviation.show(46)
+    println("withStandardDeviation count: " + withStandardDeviation.count())
+
+    // join new data with withStandardDeviation dataframe
+    val newAndOldDf: DataFrame = withStandardDeviation.join(
+      joinedAllDf, Seq("stock_code"), "inner"
+    )
+    println("newAndOldDf:")
+    println("newAndOldDf count: " + newAndOldDf.count())
+    newAndOldDf.show(71)
+
+    // and filter newAndOldDf, so that only remain rows for email
+    val forEmailDf = newAndOldDf
+      .filter(col("quantity").cast(DoubleType) > lit(2.0) * col("standard_deviation") + col("quantity_avg"))
+    println("forEmailDf:")
+    forEmailDf.show()
+    println("forEmailDf count: " + forEmailDf.count())
+
+    forEmailDf
+  }
+
+  /*
+  def createEmailBody(df: DataFrame): String = {
+
+    //val text: mutable.StringBuilder = new mutable.StringBuilder("")
+    var text: String = ""
+    val data = df.rdd
+      .map(row => {
+        row.mkString(" | ") + "\r\n"
+      }).collect()
+    data.foreach(line => text = text + line + "\r\n")
+
+
+    println("text: ")
+    println(text)
+
+    text
+  }
+   */
+
+  def sendEmail(forEmailDf: DataFrame): Unit = {
+
+    def createEmailBody(df: DataFrame): String = {
+
+      //val text: mutable.StringBuilder = new mutable.StringBuilder("")
+      var text: String = ""
+      val data = df.rdd
+        .map(row => {
+          row.mkString(" | ") + "\r\n"
+        }).collect()
+      data.foreach(line => text = text + line + "\r\n")
+
+
+      println("text: ")
+      println(text)
+
+      text
+    }
+    val columnsSeq = Seq("stock_code", "standard_deviation", "quantity_avg", "country_id", "date", "invoice_no",
+      "customer_id", "country", "invoice_date", "quantity", "unit_price", "product_description", "region_id",
+      "total_price", "country_name")
+    val header = columnsSeq.map(c => c + " | ").mkString
+    //val msg = header + "\n" + createEmailBody(dfForEmail)
+    val msg = header + "\n" + createEmailBody(forEmailDf)
+
+    val obj = new Email("/home/scala/src/main/resources/application-mail.conf")
+    //val obj = new Email(s"$configEmail")
+    val spark: SparkSession = SparkSession.builder().appName("Spark Mail Job").master("local[4]").getOrCreate()
+    obj.sendMail(msg, spark.sparkContext.applicationId, "test", "R", "", "")
+  }
+
   def writeDataframeToPostgres(dataframe: DataFrame): Unit = {
 
-    dataframe.write
+    // I don't want to save rows with unit_price 0.0 or customer_id null
+    val filteredDf = dataframe.filter(col("total_price")  =!= 0.0 &&
+                                      col("customer_id").isNotNull &&
+                                      col("quantity").gt(0))
+    println("filteredDf:")
+    filteredDf.show()
+    println("filteredDf count: " + filteredDf.count())
+
+    filteredDf.write
       .format("jdbc")
       .option("driver", s"$postgresDriver")
       .option("url", s"$postgresUrl")
@@ -189,6 +311,7 @@ class Join(hivePath: String) {
       .mode(SaveMode.Append)
       .save()
   }
+
 }
 
 object Join {
@@ -226,7 +349,26 @@ object Join {
     println("******************************************************************************************")
     println("******************************************************************************************")
 
-    println("SAVING TO POSTGRES")
+    println("CALCULATING MEAN AND STANDARD DEVIATION ")
+    val forEmailDf = join.extractInvoicesForEmail(joinedAll)
+
+    println("\nSENDING EMAIL")
+
+    //val columnsSeq = Seq("stock_code", "standard_deviation", "quantity_avg", "country_id", "date", "invoice_no",
+    //  "customer_id", "country", "invoice_date", "quantity", "unit_price", "product_description", "region_id",
+    //  "total_price", "country_name")
+    //val header = columnsSeq.map(c => c + " | ").mkString
+    //val msg = header + "\n" + createEmailBody(dfForEmail)
+    //val msg = header + "\n" + join.createEmailBody(forEmailDf)
+
+    //val obj = new Email("/home/scala/src/main/resources/application-mail.conf")
+    //val spark: SparkSession = SparkSession.builder().appName("Spark Mail Job").master("local[4]").getOrCreate()
+    //obj.sendMail(msg, spark.sparkContext.applicationId, "test", "R", "", "")
+
+
+    join.sendEmail(forEmailDf)
+
+    println("\nSAVING TO POSTGRES")
     join.writeDataframeToPostgres(joinedAll)
   }
 }

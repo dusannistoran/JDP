@@ -205,16 +205,6 @@ class Join(hivePath: String) {
     withMeanDf.show()
     println("withMeanDf count: " + withMeanDf.count())
 
-    def median(inputList: List[Double]): Double = {
-      val count = inputList.size
-      if (count % 2 == 0) {
-        val l = count / 2 - 1
-        val r = l + 1
-        (inputList(l) + inputList(r)).toDouble / 2
-      } else
-        inputList(count / 2).toDouble
-    }
-
     //val withMedianDf: DataFrame = fromPostgresDf
     //  .select("stock_code", "quantity")
     //  .groupBy("stock_code")
@@ -222,10 +212,13 @@ class Join(hivePath: String) {
     //  .select("stock_code", element_at(col("quantities"), size(col("quantities")/2 + 1).cast(IntegerType)))
 
 
+    /*
     val byStockCode = Window.partitionBy("stock_code").orderBy("quantity")
     val withMedianDf: DataFrame = fromPostgresDf
       .withColumn("quantities", collect_list("quantity") over byStockCode)
       .withColumn("qty_med", element_at(col("quantities"), (size(col("quantities"))/2 + 1).cast("int")))
+      .drop("quantities")
+     */
 
     val joined1: DataFrame = fromPostgresDf.join(
       withMeanDf, Seq("stock_code"), "inner"
@@ -234,12 +227,14 @@ class Join(hivePath: String) {
     joined1.show()
     println("joined1 count: " + joined1.count())
 
+    /*
     val joined2: DataFrame = fromPostgresDf.join(
       withMedianDf, Seq("stock_code"), "inner"
     )
     println("joined2:")
     joined2.show()
     println("joined2 count: " + joined2.count())
+     */
 
     val withStandardDeviation: DataFrame = joined1
       .select("stock_code", "quantity", "qty_avg")
@@ -396,9 +391,9 @@ object Join {
     //obj.sendMail(msg, spark.sparkContext.applicationId, "test", "R", "", "")
 
 
-    //join.sendEmail(forEmailDf)
+    join.sendEmail(forEmailDf)
 
     println("\nSAVING TO POSTGRES")
-    //join.writeDataframeToPostgres(joinedAll)
+    join.writeDataframeToPostgres(joinedAll)
   }
 }

@@ -5,8 +5,10 @@ date, CustomerID, and Country.
 """
 import csv
 
-data_edited_csv_filepath = '/home/dusan/PycharmProjects/JDP_Data_Engineering_Task/venv/csvs/data_edited2.csv'
-logs_csv_filepath = '/home/dusan/PycharmProjects/JDP_Data_Engineering_Task/venv/csvs/logs2.csv'
+#data_edited_csv_filepath = '/home/dusan/PycharmProjects/JDP_Data_Engineering_Task/venv/csvs/data_edited2.csv'
+data_edited_csv_filepath = 'file:///home/scala/src/main/resources/csvs/data_edited.csv'
+#logs_csv_filepath = '/home/dusan/PycharmProjects/JDP_Data_Engineering_Task/venv/csvs/logs2.csv'
+logs_csv_filepath = 'file:///home/scala/src/main/resources/csvs/invoices.csv'
 
 data_logs_dict = {
     "InvoiceNo": [],

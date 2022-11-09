@@ -2,8 +2,11 @@ from countries import countries_invalid, countries_all
 import csv
 import random
 
-data_origin_csv_filepath = '/home/dusan/PycharmProjects/JDP_Data_Engineering_Task/venv/csvs/data.csv'
-data_edited_csv_filepath = '/home/dusan/PycharmProjects/JDP_Data_Engineering_Task/venv/csvs/data_edited1.csv '
+#data_origin_csv_filepath = '/home/dusan/PycharmProjects/JDP_Data_Engineering_Task/venv/csvs/data.csv'
+#data_origin_csv_filepath = 'file:///home/scala/src/main/resources/csvs/data.csv'
+data_origin_csv_filepath = '/home/dusan/scalaProjects/JDP/src/main/resources/csvs/data.csv'
+#data_edited_csv_filepath = '/home/dusan/PycharmProjects/JDP_Data_Engineering_Task/venv/csvs/data_edited1.csv '
+data_edited_csv_filepath = '/home/dusan/scalaProjects/JDP/src/main/resources/csvs/data_edited_proba.csv'
 data_origin_dict = {
     "InvoiceNo": [],
     "StockCode": [],

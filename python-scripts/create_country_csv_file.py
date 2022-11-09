@@ -6,8 +6,10 @@ The Country table is a two columns table: CountryID and Country name.
 from countries import countries_all_ids_names
 import csv
 
-data_edited_csv_filepath = '/home/dusan/PycharmProjects/JDP_Data_Engineering_Task/venv/csvs/data_edited2.csv'
-countries_csv_filepath = '/home/dusan/PycharmProjects/JDP_Data_Engineering_Task/venv/csvs/countries2.csv'
+#data_edited_csv_filepath = '/home/dusan/PycharmProjects/JDP_Data_Engineering_Task/venv/csvs/data_edited2.csv'
+data_edited_csv_filepath = 'file:///home/scala/src/main/resources/csvs/data_edited.csv'
+#countries_csv_filepath = '/home/dusan/PycharmProjects/JDP_Data_Engineering_Task/venv/csvs/countries2.csv'
+countries_csv_filepath = 'file:///home/scala/src/main/resources/csvs/countries.csv'
 
 data_countries_list = []
 

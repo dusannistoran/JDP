@@ -13,6 +13,7 @@ bash-scripts/test-fast-mode.sh
 docker/invoices
 docker/metastore-postgresql
 docker/incubator-superset
+docker/airflow
 src/test
 src/main/resources/csvs/note
 src/main/resources/csvs/note2
@@ -32,4 +33,5 @@ src/main/scala/com/example/DataStudying.scala
 src/main/scala/com/example/Alarm.scala
 src/main/scala/com/example/StandardDeviation.scala
 bash-scripts/.test-fast-mode.sh.swp
+python-scripts/__pycache__/
 ..gitignore.swp

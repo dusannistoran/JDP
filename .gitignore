@@ -17,6 +17,8 @@ docker/airflow
 src/test
 src/main/resources/csvs/note
 src/main/resources/csvs/note2
+src/main/resources/csvs/note3
+src/main/resources/csvs/note4
 src/main/resources/application.conf
 src/main/resources/application-mail.conf
 src/main/scala/com/example/InvoicesFromHDFSToHiveTest.scala

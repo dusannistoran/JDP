@@ -6,8 +6,10 @@ priced differently on different dates.
 
 import csv
 
-data_edited_csv_filepath = '/home/dusan/PycharmProjects/JDP_Data_Engineering_Task/venv/csvs/data_edited2.csv'
-product_info_csv_filepath = '/home/dusan/PycharmProjects/JDP_Data_Engineering_Task/venv/csvs/product_info2.csv'
+#data_edited_csv_filepath = '/home/dusan/PycharmProjects/JDP_Data_Engineering_Task/venv/csvs/data_edited2.csv'
+data_edited_csv_filepath = 'file:///home/scala/src/main/resources/csvs/data_edited.csv'
+#product_info_csv_filepath = '/home/dusan/PycharmProjects/JDP_Data_Engineering_Task/venv/csvs/product_info2.csv'
+product_info_csv_filepath = 'file:///home/scala/src/main/resources/csvs/product_info.csv'
 
 data_product_info_dict = {
     "StockCode": [],

@@ -23,7 +23,7 @@ class InvoicesFromLocalToHDFS(localPath: String, hdfsPath: String) {
 
   val nowTime: LocalTime = LocalTime.now()
   val formatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH_mm_ss")
-  val now: String = nowTime.format(formatter)
+  //val now: String = nowTime.format(formatter)
 
   lazy val spark: SparkSession = SparkSession
     .builder()

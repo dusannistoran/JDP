@@ -94,9 +94,9 @@ class Join(hivePath: String) {
     // later I'll modify this and involve 3 hours ago, 2 hours ago, hour ago and current hour invoices
     val dfFilteredByHour = dfInvoicesForOnlyToday
       .filter(
-        //hour(col("invoice_date")) === currentTimeHoursStr
+        hour(col("invoice_date")) === currentTimeHoursStr
       //     ||
-             hour(col("invoice_date")) === hourAgoStr
+      //       hour(col("invoice_date")) === hourAgoStr
       )
     println("dfFilteredByHour:")
     dfFilteredByHour.show()
@@ -395,9 +395,14 @@ class Join(hivePath: String) {
 
       text
     }
-    val columnsSeq = Seq("stock_code", "standard_deviation", "quantity_avg", "country_id", "date", "invoice_no",
+    //val columnsSeq = Seq("stock_code", "standard_deviation", "quantity_avg", "country_id", "date", "invoice_no",
+    //  "customer_id", "country", "invoice_date", "quantity", "unit_price", "product_description", "region_id",
+    //  "total_price", "country_name")
+
+    val columnsSeq = Seq("stock_code", "standard_deviation", "quantity_median", "country_id", "date", "invoice_no",
       "customer_id", "country", "invoice_date", "quantity", "unit_price", "product_description", "region_id",
       "total_price", "country_name")
+
     val header = columnsSeq.map(c => c + " | ").mkString
 
     val msg = header + "\n" + createEmailBody(forEmailDf)

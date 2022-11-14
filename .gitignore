@@ -15,6 +15,9 @@ docker/metastore-postgresql
 docker/incubator-superset
 docker/airflow
 src/test
+src/main/resources/csvs/countries_proba.csv
+src/main/resources/csvs/data_edited_proba.csv
+src/main/resources/csvs/invoices_proba.csv
 src/main/resources/csvs/note
 src/main/resources/csvs/note2
 src/main/resources/csvs/note3
@@ -34,6 +37,7 @@ src/main/scala/com/example/Join2.scala
 src/main/scala/com/example/DataStudying.scala
 src/main/scala/com/example/Alarm.scala
 src/main/scala/com/example/StandardDeviation.scala
+src/main/scala/com/example/Std.scala
 bash-scripts/.test-fast-mode.sh.swp
 python-scripts/__pycache__/
 ..gitignore.swp

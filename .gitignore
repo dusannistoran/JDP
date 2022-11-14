@@ -18,6 +18,7 @@ src/test
 src/main/resources/csvs/countries_proba.csv
 src/main/resources/csvs/data_edited_proba.csv
 src/main/resources/csvs/invoices_proba.csv
+src/main/resources/csvs/product_info_proba.csv
 src/main/resources/csvs/note
 src/main/resources/csvs/note2
 src/main/resources/csvs/note3

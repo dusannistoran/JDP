@@ -64,9 +64,9 @@ class InvoicesFromHDFSToHive(hdfsPath: String, hiveTableName: String) {
     val threeHoursAgoInt: Int = nowHoursInt - 3
     val twoHoursAgoInt: Int = nowHoursInt - 2
     val hourAgoInt: Int = nowHoursInt - 1
-    val threeHoursAgoStr: String = threeHoursAgoInt + ""
-    val twoHoursAgoStr: String = twoHoursAgoInt + ""
-    val hourAgoStr: String = hourAgoInt + ""
+    //val threeHoursAgoStr: String = threeHoursAgoInt + ""
+    //val twoHoursAgoStr: String = twoHoursAgoInt + ""
+    //val hourAgoStr: String = hourAgoInt + ""
 
     val fileSystem: FileSystem = {
       val conf = new Configuration()

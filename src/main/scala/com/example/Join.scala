@@ -185,6 +185,7 @@ class Join(hivePath: String) {
     joinedAll
   }
 
+  /*
   def extractInvoicesForEmailMean(joinedAllDf: DataFrame): DataFrame = {
 
     // first, extract whole "old" data from Postgres
@@ -210,49 +211,12 @@ class Join(hivePath: String) {
     withMeanDf.show()
     println("withMeanDf count: " + withMeanDf.count())
 
-    //val withMedianDf: DataFrame = fromPostgresDf
-    //  .select("stock_code", "quantity")
-    //  .groupBy("stock_code")
-    //  .agg(sort_array(collect_list("quantity")) alias "quantities")
-    //  .select("stock_code", element_at(col("quantities"), size(col("quantities")/2 + 1).cast(IntegerType)))
-
-
-
-    //val byStockCode = Window.partitionBy("stock_code").orderBy("quantity")
-    //val withMedianDf: DataFrame = fromPostgresDf
-    //  .withColumn("quantities", collect_list("quantity") over byStockCode)
-    //  .withColumn("qty_med", element_at(col("quantities"), (size(col("quantities"))/2 + 1).cast("int")))
-    //  .drop("quantities")
-
-
-
-    //val withMedianDf: DataFrame = fromPostgresDf
-    //  .select("stock_code", "quantity")
-    //  .groupBy("stock_code")
-      //.agg(stddev_samp(col("quantity")))
-    //  .agg(fromPostgresDf.stat.approxQuantile("quantity", Array(0.5), 0))
-
-    //val groupWindow = Window.partitionBy("stock_code")
-    //val my_percentile = expr("percentile_approx(val, 0.5)")
-    //val withMedianDf: DataFrame = fromPostgresDf
-    //  .select("stock_code", "quantity")
-    //  .withColumn("quantity_median", my_percentile.over(groupWindow))
-
     val joined: DataFrame = fromPostgresDf.join(
       withMeanDf, Seq("stock_code"), "inner"
     )
     println("joined:")
     joined.show()
     println("joined1 count: " + joined.count())
-
-
-    //val joined2: DataFrame = fromPostgresDf.join(
-    //  withMedianDf, Seq("stock_code"), "inner"
-    //)
-    //println("joined2:")
-    //joined2.show()
-    //println("joined2 count: " + joined2.count())
-
 
     val withStandardDeviation: DataFrame = joined
       .select("stock_code", "quantity", "qty_avg")
@@ -283,8 +247,7 @@ class Join(hivePath: String) {
 
     forEmailDf
   }
-
-
+   */
 
   def extractInvoicesForEmailMedian(joinedAllDf: DataFrame): DataFrame = {
 
@@ -302,24 +265,10 @@ class Join(hivePath: String) {
     println("fromPostgresDf count: " + fromPostgresDf.count())
 
     // then, calculate median and standard deviation per stock_code for old Postgres data
-    def myPercentile(p: Double, args: Column*): Column = {
-      val xs = array_sort(array(args: _*))
-      //val xs = array(args: _*)
-      val n = size(xs)
-      val h = (n - 1) * p
-      val i = floor(h).cast("int")
-      val (x0, x1) = (xs(i), xs(i + 1))
-      x0 + (h - i) * (x1 - x0)
-    }
-
     val withMedianArrayDf: DataFrame = fromPostgresDf
       .select("stock_code", "quantity")
       .groupBy("stock_code")
-      //.agg(myPercentile(0.5, col("quantity")))
-      //.agg(avg(col("quantity")) alias "qty_avg")
-      //.withColumn("qty_median", myPercentile(0.5, col("quantity")))
       .agg(sort_array(collect_list(col("quantity"))) alias "median_array")
-      //.withColumn("qty_median", myPercentile(0.5, col("median")))
 
     println("withMedianArrayDf:")
     withMedianArrayDf.show()
@@ -349,7 +298,6 @@ class Join(hivePath: String) {
 
     val withStandardDeviation: DataFrame = joined
       .select("stock_code", "quantity", "median_array", "median_int")
-      //.select("stock_code", "quantity")
       .groupBy("stock_code")
       .agg(
         sqrt(sum((col("quantity") - col("median_int")) * (col("quantity") - col("median_int"))) / count("stock_code"))
@@ -472,25 +420,13 @@ object Join {
     println("******************************************************************************************")
     println("******************************************************************************************")
 
-    println("CALCULATING MEAN AND STANDARD DEVIATION ")
-    val forEmailMeanDf = join.extractInvoicesForEmailMean(joinedAll)
+    println("CALCULATING MEDIAN AND STANDARD DEVIATION ")
+    //val forEmailMeanDf = join.extractInvoicesForEmailMean(joinedAll)
     val forEmailMedianDf = join.extractInvoicesForEmailMedian(joinedAll)
     println("\nSENDING EMAIL")
 
-    //val columnsSeq = Seq("stock_code", "standard_deviation", "quantity_avg", "country_id", "date", "invoice_no",
-    //  "customer_id", "country", "invoice_date", "quantity", "unit_price", "product_description", "region_id",
-    //  "total_price", "country_name")
-    //val header = columnsSeq.map(c => c + " | ").mkString
-    //val msg = header + "\n" + createEmailBody(dfForEmail)
-    //val msg = header + "\n" + join.createEmailBody(forEmailDf)
-
-    //val obj = new Email("/home/scala/src/main/resources/application-mail.conf")
-    //val spark: SparkSession = SparkSession.builder().appName("Spark Mail Job").master("local[4]").getOrCreate()
-    //obj.sendMail(msg, spark.sparkContext.applicationId, "test", "R", "", "")
-
-
-    if (!forEmailMeanDf.isEmpty) join.sendEmail(forEmailMeanDf)
-    else println("Dataframe mean for email is empty")
+    //if (!forEmailMeanDf.isEmpty) join.sendEmail(forEmailMeanDf)
+    //else println("Dataframe mean for email is empty")
 
     if (!forEmailMedianDf.isEmpty) join.sendEmail(forEmailMedianDf)
     else println("Dataframe median for email is empty")

@@ -21,7 +21,7 @@ class InvoicesFromLocalToHDFS(localPath: String, hdfsPath: String) {
   val sparkCores: String = configSpark.getString("master")
   val checkpoint: String = configSpark.getString("checkpointLocation")
 
-  val nowTime: LocalTime = LocalTime.now()
+  //val nowTime: LocalTime = LocalTime.now()
   val formatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH_mm_ss")
   //val now: String = nowTime.format(formatter)
 
@@ -36,6 +36,7 @@ class InvoicesFromLocalToHDFS(localPath: String, hdfsPath: String) {
   LoggerFactory.getLogger(spark.getClass)
   spark.sparkContext.setLogLevel("WARN")
 
+
   val invoicesSchema: StructType = StructType(
     StructField("InvoiceNo", StringType, nullable = true) ::
       StructField("StockCode", StringType, nullable = true) ::
@@ -48,71 +49,88 @@ class InvoicesFromLocalToHDFS(localPath: String, hdfsPath: String) {
   // pick up invoices hour by hour, according to current time
   def getDataframeFromLocalByGivenDateAndHour(nowHours: String): DataFrame = {
 
-    val today: LocalDate = LocalDate.now()
-    // american format
-    val formatterDate = DateTimeFormatter.ofPattern("M/d/yyyy")
-    val todayFormattedStr: String = today.format(formatterDate)
-    val csvToday: LocalDate = today.minusDays(differenceInDays)
-    val csvTodayFormattedStr: String = csvToday.format(formatterDate)
-    println("today (String): " + todayFormattedStr)
-    println("csvToday (String): " + csvTodayFormattedStr)
+    try {
 
-    // all invoices from whole csv file
-    val dfWholeCsvFile = spark
-      .read
-      .format("csv")
-      .option("header", "true")
-      .schema(invoicesSchema)
-      .load(localPath)
+      val today: LocalDate = LocalDate.now()
+      // american format
+      val formatterDate = DateTimeFormatter.ofPattern("M/d/yyyy")
+      val todayFormattedStr: String = today.format(formatterDate)
+      val csvToday: LocalDate = today.minusDays(differenceInDays)
+      val csvTodayFormattedStr: String = csvToday.format(formatterDate)
+      println("today (String): " + todayFormattedStr)
+      println("csvToday (String): " + csvTodayFormattedStr)
 
-    // invoices filtered by date: today - differenceInDays
-    val dfOnlyAkaToday = dfWholeCsvFile.filter(col("InvoiceDate").startsWith(csvTodayFormattedStr))
-    println("dfOnlyAkaToday:")
-    dfOnlyAkaToday.show()
-    println("dfOnlyAkaToday count: " + dfOnlyAkaToday.count())
+      // all invoices from whole csv file
+      val dfWholeCsvFile = spark
+        .read
+        .format("csv")
+        .option("header", "true")
+        .schema(invoicesSchema)
+        .load(localPath)
 
-    val splitColInvoiceDate = split(dfOnlyAkaToday.col("InvoiceDate"), " ")
-    val dfTimeOnly = dfOnlyAkaToday
-      .withColumn("dateOnly", splitColInvoiceDate.getItem(0))
-      .withColumn("timeOnly", splitColInvoiceDate.getItem(1))
-      .withColumn("hours", hour(col("timeOnly")))
-    println("dfTimeOnly:")
-    dfTimeOnly.show()
-    println("dfTimeOnly count: " + dfTimeOnly.count())
+      // invoices filtered by date: today - differenceInDays
+      val dfOnlyAkaToday = dfWholeCsvFile.filter(col("InvoiceDate").startsWith(csvTodayFormattedStr))
+      println("dfOnlyAkaToday:")
+      dfOnlyAkaToday.show()
+      println("dfOnlyAkaToday count: " + dfOnlyAkaToday.count())
 
-    // invoices filtered by current time, that is, current hour
-    val nowHoursString: String = nowHours
-    println("now hours UTC (String): " + nowHoursString)
-    val dfNowHoursOnly = dfTimeOnly.filter(col("hours").equalTo(nowHoursString))
-    println("dfNowHoursOnly:")
-    dfNowHoursOnly.show()
-    println("dfNowHoursOnly count: " + dfNowHoursOnly.count())
-    dfNowHoursOnly
+      val splitColInvoiceDate = split(dfOnlyAkaToday.col("InvoiceDate"), " ")
+      val dfTimeOnly = dfOnlyAkaToday
+        .withColumn("dateOnly", splitColInvoiceDate.getItem(0))
+        .withColumn("timeOnly", splitColInvoiceDate.getItem(1))
+        .withColumn("hours", hour(col("timeOnly")))
+      println("dfTimeOnly:")
+      dfTimeOnly.show()
+      println("dfTimeOnly count: " + dfTimeOnly.count())
+
+      // invoices filtered by current time, that is, current hour
+      val nowHoursString: String = nowHours
+      println("now hours UTC (String): " + nowHoursString)
+      val dfNowHoursOnly = dfTimeOnly.filter(col("hours").equalTo(nowHoursString))
+      println("dfNowHoursOnly:")
+      dfNowHoursOnly.show()
+      println("dfNowHoursOnly count: " + dfNowHoursOnly.count())
+      dfNowHoursOnly
+    } catch {
+      case e: Exception => println("InvoicesFromLocalToHDFS, " +
+        "def getDataframeFromLocalByGivenDateAndHour(nowHours: String): DataFrame, " +
+        "error occurred: " + e)
+        import org.apache.spark.sql.Row
+        val emptyDf: DataFrame = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], invoicesSchema)
+        emptyDf
+    }
+
   }
 
   def transformDataframeAndSaveToHDFS(dfFiltered: DataFrame): Unit = {
 
-    val dfForHDFS = dfFiltered
-      .drop(col("timeOnly"))
-      .drop(col("hours"))
-      .drop(col("dateOnly"))
-      .withColumn("invoice_date", to_timestamp(col("InvoiceDate"), "M/d/yyyy H:mm"))
-      .withColumn("quantity_int", col("Quantity").cast(IntegerType))
-      .drop("Quantity")
-      .drop(col("InvoiceDate"))
-      .withColumnRenamed("InvoiceNo", "invoice_no")
-      .withColumnRenamed("StockCode", "stock_code")
-      .withColumnRenamed("quantity_int", "quantity")
-      .withColumnRenamed("CustomerID", "customer_id")
-      .withColumnRenamed("Country", "country")
+    try {
+      val dfForHDFS = dfFiltered
+        .drop(col("timeOnly"))
+        .drop(col("hours"))
+        .drop(col("dateOnly"))
+        .withColumn("invoice_date", to_timestamp(col("InvoiceDate"), "M/d/yyyy H:mm"))
+        .withColumn("quantity_int", col("Quantity").cast(IntegerType))
+        .drop("Quantity")
+        .drop(col("InvoiceDate"))
+        .withColumnRenamed("InvoiceNo", "invoice_no")
+        .withColumnRenamed("StockCode", "stock_code")
+        .withColumnRenamed("quantity_int", "quantity")
+        .withColumnRenamed("CustomerID", "customer_id")
+        .withColumnRenamed("Country", "country")
 
-    val nowHours: String = getNowHoursUTC
-    val hdfsAbsolutePath: String = hdfsPath + "/" + nowHours
+      val nowHours: String = getNowHoursUTC
+      val hdfsAbsolutePath: String = hdfsPath + "/" + nowHours
 
-    dfForHDFS.write
-      .mode("overwrite")
-      .option("header", "true")
-      .csv(hdfsAbsolutePath)
+      dfForHDFS.write
+        .mode("overwrite")
+        .option("header", "true")
+        .csv(hdfsAbsolutePath)
+    } catch {
+      case e: Exception => println("InvoicesFromLocalToHDFS, " +
+        "def transformDataframeAndSaveToHDFS(dfFiltered: DataFrame): Unit, " +
+        "error occurred: " + e)
+    }
   }
 }
 

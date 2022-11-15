@@ -138,14 +138,21 @@ object InvoicesFromLocalToHDFS {
 
   def main(args: Array[String]): Unit = {
 
-    val configSpark: Config = ConfigFactory.load().getConfig("application.spark")
-    val configHDFS: Config = ConfigFactory.load().getConfig("application.hdfs")
-    val csvInvoicesPath: String = configSpark.getString("localInvoicesPath")
-    val hdfsInvoicesPath: String = configHDFS.getString("hdfsInvoicesPath")
+    try {
+      val configSpark: Config = ConfigFactory.load().getConfig("application.spark")
+      val configHDFS: Config = ConfigFactory.load().getConfig("application.hdfs")
+      val csvInvoicesPath: String = configSpark.getString("localInvoicesPath")
+      val hdfsInvoicesPath: String = configHDFS.getString("hdfsInvoicesPath")
 
-    val invoicesFromLocalToHDFS = new InvoicesFromLocalToHDFS(csvInvoicesPath, hdfsInvoicesPath)
-    val nowHours: String = getNowHoursUTC
-    val dfFiltered = invoicesFromLocalToHDFS.getDataframeFromLocalByGivenDateAndHour(nowHours)
-    invoicesFromLocalToHDFS.transformDataframeAndSaveToHDFS(dfFiltered)
+      val invoicesFromLocalToHDFS = new InvoicesFromLocalToHDFS(csvInvoicesPath, hdfsInvoicesPath)
+      val nowHours: String = getNowHoursUTC
+      val dfFiltered = invoicesFromLocalToHDFS.getDataframeFromLocalByGivenDateAndHour(nowHours)
+      invoicesFromLocalToHDFS.transformDataframeAndSaveToHDFS(dfFiltered)
+    } catch {
+      case e: Exception => println("InvoicesFromLocalToHDFS, " +
+        "def main(args: Array[String]): Unit, " +
+        "error occurred: " + e)
+    }
+
   }
 }

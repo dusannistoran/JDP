@@ -128,13 +128,46 @@ services:
     image: postgres:latest
     container_name: postgres_jdp
     volumes:
+      #- /home/dusan/scalaProjects/JDP/docker/pg-init-scripts/init-user-db.sh
       - metadata_data:/var/lib/postgresql/data
     ports:
-      - 5432:5432
+      - "5432:5432"
     environment:
       - POSTGRES_PASSWORD=FoolishPassword
+      #- POSTGRES_PASSWORD=airflow
       - POSTGRES_USER=postgres
+      #- POSTGRES_USER=airflow
       - POSTGRES_DB=jdp
+      #- POSTGRES_DB=airflow
+
+#  airflow:
+#    image: docker-airflow-spark:1.10.7_3.0.1
+#    container_name: airflow
+#    user: root
+#    depends_on:
+#      - spark-master
+#      - postgres_db
+#    environment:
+#      - LOAD_X=n
+#      - EXECUTOR=Local
+#      - FERNET_KEY=''
+#      - CORE_CONF_fs_defaultFS=hdfs://namenode:8020
+#    logging:
+#      options:
+#        max-size: 10m
+#        max-file: "3"
+#    volumes:
+#      - ./airflow/dags:/root/airflow/dags # DAG folder
+#      - ../src/main/scala/com/example:/usr/local/src/main/scala/com/example # Spark scripts (must be the same path in Airflow and Spark cluster)
+#      - ../src/main/resources/:/usr/local/src/main/resources # Resources folder (must be the same path in Airflow and Spark cluster)
+#    ports:
+#      - "8282:8080"
+#    command: webserver
+#    healthcheck:
+#      test: ["CMD-SHELL", "[ -f /usr/local/airflow/airflow-webserver.pid ]"]
+#      interval: 30s
+#      timeout: 30s
+#      retries: 3
 
 volumes:
   hadoop_namenode: {}

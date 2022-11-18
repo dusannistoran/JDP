@@ -14,7 +14,11 @@ docker/invoices
 docker/metastore-postgresql
 docker/incubator-superset
 docker/airflow
+docker/config
 docker/Dockerfile
+docker/pg-init-scripts
+docker/entrypoint.sh
+docker/requirements.txt
 src/test
 src/main/resources/csvs/countries_proba.csv
 src/main/resources/csvs/data_edited_proba.csv

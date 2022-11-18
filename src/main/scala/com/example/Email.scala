@@ -92,8 +92,10 @@ class Email(Conf:String) {
       } else if (MailType.toUpperCase() == "R") {
         if (defaultMsg.isEmpty || defaultMsg.trim() == "") {
           defMsg = "<br><h3><b>Please find below Report:</b></h3>"
-        } else defMsg = "<br><h3>" + defaultMsg + "</b></h3>"
-        msg = defMsg + "<br>" + text
+        } //else defMsg = "<br><h3>" + defaultMsg + "</b></h3>"
+        else defMsg = defaultMsg
+        //msg = defMsg + "<br>" + text
+        msg = defMsg + text
       } else {
         defMsg = "<br><h3>" + defaultMsg + "</b></h3>"
 

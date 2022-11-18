@@ -14,6 +14,7 @@ docker/invoices
 docker/metastore-postgresql
 docker/incubator-superset
 docker/airflow
+docker/Dockerfile
 src/test
 src/main/resources/csvs/countries_proba.csv
 src/main/resources/csvs/data_edited_proba.csv

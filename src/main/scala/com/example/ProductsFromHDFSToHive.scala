@@ -2,6 +2,7 @@ package com.example
 
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.hadoop.conf.Configuration
 import org.apache.spark.sql.functions.{col, to_date}
 import org.apache.spark.sql.{DataFrame, Row, SaveMode, SparkSession}
 import org.apache.spark.sql.types.{DecimalType, StringType, StructField, StructType, TimestampType}
@@ -50,34 +51,31 @@ class ProductsFromHDFSToHive(hdfsPath: String, hiveTableName: String) {
 
   def getDataframeFromHDFSByGivenDate: DataFrame = {
 
-    val today = new SimpleDateFormat("dd-MM-yyyy").format(new Date())
-    println("hdfsPath: " + hdfsPath)
-    val hdfsAbsolutePath = hdfsPath + "/" + today
-    println("hdfsWholePath: " + hdfsAbsolutePath)
 
-    if (FileSystem.get(new URI(hdfsAbsolutePath), spark.sparkContext.hadoopConfiguration).exists(new Path(hdfsAbsolutePath))) {
-      val dfFromHDFS = spark
-        .read
-        .format("csv")
-        .option("header", "true")
-        .schema(productsSchema)
-        .load(hdfsAbsolutePath)
+      val today = new SimpleDateFormat("dd-MM-yyyy").format(new Date())
+      println("hdfsPath: " + hdfsPath)
+      val hdfsAbsolutePath = hdfsPath + "/" + today
+      println("hdfsWholePath: " + hdfsAbsolutePath)
 
-      println("dfFromHDFS schema:")
-      dfFromHDFS.printSchema()
-      println("dfFromHDFS:")
-      dfFromHDFS.show()
+      if (FileSystem.get(new URI(hdfsAbsolutePath), spark.sparkContext.hadoopConfiguration).exists(new Path(hdfsAbsolutePath))) {
+        val dfFromHDFS = spark
+          .read
+          .format("csv")
+          .option("header", "true")
+          .schema(productsSchema)
+          .load(hdfsAbsolutePath)
 
-      val dfProductsWithDateOnly = dfFromHDFS
-        .withColumn("dateOnly", to_date(dfFromHDFS.col("invoice_date"), "M/d/yyyy"))
-        .drop("invoice_date")
-        .withColumnRenamed("dateOnly", "date")
+        println("dfFromHDFS schema:")
+        dfFromHDFS.printSchema()
+        println("dfFromHDFS:")
+        dfFromHDFS.show()
 
-      // later, I will be deleting products on HDFS as they're taken to be saved to Hive table
-      //val fileSystem = FileSystem.get(spark.sparkContext.hadoopConfiguration)
-      //val srcPath = new Path(hdfsPath)
-      //fileSystem.delete(srcPath, true)
-      dfProductsWithDateOnly
+        val dfProductsWithDateOnly = dfFromHDFS
+          .withColumn("dateOnly", to_date(dfFromHDFS.col("invoice_date"), "M/d/yyyy"))
+          .drop("invoice_date")
+          .withColumnRenamed("dateOnly", "date")
+
+        dfProductsWithDateOnly
     }
     else {
       println(hdfsAbsolutePath + " does not exist!")
@@ -87,10 +85,30 @@ class ProductsFromHDFSToHive(hdfsPath: String, hiveTableName: String) {
   }
 
   def saveDataframeToHive(dfForHive: DataFrame): Unit = {
-    dfForHive.write
-      .mode(SaveMode.Append)
-      .format("hive")
-      .saveAsTable(hiveTableName)
+
+    try {
+      dfForHive.write
+        .mode(SaveMode.Append)
+        .format("hive")
+        .saveAsTable(hiveTableName)
+      val today = new SimpleDateFormat("dd-MM-yyyy").format(new Date())
+      println("hdfsPath: " + hdfsPath)
+      val hdfsAbsolutePath = hdfsPath + "/" + today
+      println("hdfsWholePath: " + hdfsAbsolutePath)
+
+      val fileSystem: FileSystem = {
+        val conf = new Configuration()
+        conf.set("fs.defaultFS", hdfsPath)
+        FileSystem.get(conf)
+      }
+      println("products hdfsAbsolutePath: " + hdfsAbsolutePath)
+      val srcPath = new Path(hdfsAbsolutePath)
+      if (fileSystem.exists(srcPath)) fileSystem.delete(srcPath, true)
+    } catch {
+      case e: Exception => println("ProductsFromHDFSToHive, " +
+        "def saveDataframeToHive(dfForHive: DataFrame): Unit, " +
+        "error occurred: " + e)
+    }
   }
 
   def getDataframeFromHDFSByGivenDateAndHourAndSaveToHiveTable: Unit = {
@@ -147,18 +165,25 @@ object ProductsFromHDFSToHive {
 
   def main(args: Array[String]): Unit = {
 
-    val configHDFS: Config = ConfigFactory.load().getConfig("application.hdfs")
-    val configHive: Config = ConfigFactory.load().getConfig("application.hive")
-    val hdfsProductsPath = configHDFS.getString("hdfsProductInfoPath")
-    val hiveTablePathPrefix = configHive.getString("hiveTablesPathPrefix")
-    val productHiveTableName = configHive.getString("productTableName")
-    val absoluteHiveTablePath = hiveTablePathPrefix + productHiveTableName
+    try {
+      val configHDFS: Config = ConfigFactory.load().getConfig("application.hdfs")
+      val configHive: Config = ConfigFactory.load().getConfig("application.hive")
+      val hdfsProductsPath = configHDFS.getString("hdfsProductInfoPath")
+      //val hiveTablePathPrefix = configHive.getString("hiveTablesPathPrefix")
+      val productHiveTableName = configHive.getString("productTableName")
+      //val absoluteHiveTablePath = hiveTablePathPrefix + productHiveTableName
 
-    val productsFromHDFSToHive = new ProductsFromHDFSToHive(hdfsProductsPath, productHiveTableName)
-    val dfForHive = productsFromHDFSToHive.getDataframeFromHDFSByGivenDate
-    //println("dfForHive count: " + dfForHive.count())
-    //println("absoluteHiveTablePath: " + absoluteHiveTablePath)
-    //println("hiveTableName: " + productHiveTableName)
-    productsFromHDFSToHive.saveDataframeToHive(dfForHive)
+      val productsFromHDFSToHive = new ProductsFromHDFSToHive(hdfsProductsPath, productHiveTableName)
+      val dfForHive = productsFromHDFSToHive.getDataframeFromHDFSByGivenDate
+      //println("dfForHive count: " + dfForHive.count())
+      //println("absoluteHiveTablePath: " + absoluteHiveTablePath)
+      //println("hiveTableName: " + productHiveTableName)
+      productsFromHDFSToHive.saveDataframeToHive(dfForHive)
+    } catch {
+      case e: Exception => println("ProductsFromHDFSToHive, " +
+        "def main(args: Array[String]): Unit, " +
+        "error occurred: " + e)
+    }
+
   }
 }

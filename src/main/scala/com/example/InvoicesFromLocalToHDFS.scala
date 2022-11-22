@@ -86,11 +86,19 @@ class InvoicesFromLocalToHDFS(localPath: String, hdfsPath: String) {
       // invoices filtered by current time, that is, current hour
       val nowHoursString: String = nowHours
       println("now hours UTC (String): " + nowHoursString)
-      val dfNowHoursOnly = dfTimeOnly.filter(col("hours").equalTo(nowHoursString))
-      println("dfNowHoursOnly:")
-      dfNowHoursOnly.show()
-      println("dfNowHoursOnly count: " + dfNowHoursOnly.count())
-      dfNowHoursOnly
+      val nowHoursInt: Int = nowHoursString.toInt
+      val hourAgoInt: Int = nowHoursInt - 1
+      val hourAgoStr: String = hourAgoInt + ""
+      //val dfNowHoursOnly = dfTimeOnly.filter(col("hours").equalTo(nowHoursString))
+      //println("dfNowHoursOnly:")
+      //dfNowHoursOnly.show()
+      //println("dfNowHoursOnly count: " + dfNowHoursOnly.count())
+      //dfNowHoursOnly
+      val dfHourAgoOnly = dfTimeOnly.filter(col("hours").equalTo(hourAgoStr))
+      println("dfHourAgoOnly:")
+      dfHourAgoOnly.show()
+      println("dfHourAgoOnly count: " + dfHourAgoOnly.count())
+      dfHourAgoOnly
     } catch {
       case e: Exception => println("InvoicesFromLocalToHDFS, " +
         "def getDataframeFromLocalByGivenDateAndHour(nowHours: String): DataFrame, " +

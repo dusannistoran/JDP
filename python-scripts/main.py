@@ -1,12 +1,14 @@
 from countries import countries_invalid, countries_all
 import csv
 import random
+import configparser
 
-#data_origin_csv_filepath = '/home/dusan/PycharmProjects/JDP_Data_Engineering_Task/venv/csvs/data.csv'
-#data_origin_csv_filepath = 'file:///home/scala/src/main/resources/csvs/data.csv'
-data_origin_csv_filepath = '/home/dusan/scalaProjects/JDP/src/main/resources/csvs/data.csv'
-#data_edited_csv_filepath = '/home/dusan/PycharmProjects/JDP_Data_Engineering_Task/venv/csvs/data_edited1.csv '
-data_edited_csv_filepath = '/home/dusan/scalaProjects/JDP/src/main/resources/csvs/data_edited_proba.csv'
+config = configparser.ConfigParser()
+config.read('config.ini')
+
+data_origin_csv_filepath = config['data_origin']['path']
+data_edited_csv_filepath = config['data_edited']['path']
+
 data_origin_dict = {
     "InvoiceNo": [],
     "StockCode": [],
@@ -21,7 +23,7 @@ data_origin_dict = {
 with open(f'{data_origin_csv_filepath}', 'r', encoding="ISO-8859-1") as csv_file:
     csv_reader = csv.DictReader(csv_file, delimiter=',')
     # next(csv_reader)  # to skip header
-    count = 0
+    #count = 0
 
     for line in csv_reader:
         data_origin_dict["InvoiceNo"].append(line["InvoiceNo"])
@@ -95,5 +97,4 @@ with open(f'{data_edited_csv_filepath}', 'w', encoding="UTF-8", newline='') as c
     # the remaining values to the corresponding
     # columns using zip function.
     writer.writerows(zip(*data_origin_dict.values()))
-
 

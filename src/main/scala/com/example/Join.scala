@@ -83,20 +83,28 @@ class Join(hivePath: String) {
     val currentTimeHoursStr: String = getNowHoursUTC
     println("currentTimeHours: " + currentTimeHoursStr)
     val currentTimeHoursInt: Int = currentTimeHoursStr.toInt
+    val fourHoursAgoInt: Int = currentTimeHoursInt - 4
     val threeHoursAgoInt: Int = currentTimeHoursInt - 3
     val twoHoursAgoInt: Int = currentTimeHoursInt - 2
     val hourAgoInt: Int = currentTimeHoursInt - 1
+    val fourHoursAgoStr: String = fourHoursAgoInt + ""
     val threeHoursAgoStr: String = threeHoursAgoInt + ""
     val twoHoursAgoStr: String = twoHoursAgoInt + ""
     val hourAgoStr: String = hourAgoInt + ""
 
-    // filtering invoices by current time; previous hour and current hour;
-    // later I'll modify this and involve 3 hours ago, 2 hours ago, hour ago and current hour invoices
+    // filtering invoices by current time;
+    // I involve 4 hours ago, 3 hours ago, 2 hours ago, and hour ago invoices
     val dfFilteredByHour = dfInvoicesForOnlyToday
       .filter(
-        hour(col("invoice_date")) === currentTimeHoursStr
-      //     ||
-      //       hour(col("invoice_date")) === hourAgoStr
+       // hour(col("invoice_date")) === currentTimeHoursStr
+       //    ||
+             hour(col("invoice_date")) === hourAgoStr
+        ||
+               hour(col("invoice_date")) === twoHoursAgoStr
+        ||
+               hour(col("invoice_date")) === threeHoursAgoStr
+        ||
+               hour(col("invoice_date")) === fourHoursAgoStr
       )
     println("dfFilteredByHour:")
     dfFilteredByHour.show()
@@ -256,7 +264,7 @@ class Join(hivePath: String) {
       .format("jdbc")
       .option("driver", s"$postgresDriver")
       .option("url", s"$postgresUrl")
-      .option("dbtable", "joined")
+      .option("dbtable", "joined_real")
       .option("user", s"$postgresUser")
       .option("password", s"$postgresPassword")
       .load()
@@ -343,9 +351,6 @@ class Join(hivePath: String) {
 
       text
     }
-    //val columnsSeq = Seq("stock_code", "standard_deviation", "quantity_avg", "country_id", "date", "invoice_no",
-    //  "customer_id", "country", "invoice_date", "quantity", "unit_price", "product_description", "region_id",
-    //  "total_price", "country_name")
 
     val columnsSeq = Seq("stock_code", "standard_deviation", "quantity_median", "country_id", "date", "invoice_no",
       "customer_id", "country", "invoice_date", "quantity", "unit_price", "product_description", "region_id",
@@ -376,7 +381,7 @@ class Join(hivePath: String) {
       .format("jdbc")
       .option("driver", s"$postgresDriver")
       .option("url", s"$postgresUrl")
-      .option("dbtable", "joined")
+      .option("dbtable", "joined_real")
       .option("user", s"$postgresUser")
       .option("password", s"$postgresPassword")
       .mode(SaveMode.Append)

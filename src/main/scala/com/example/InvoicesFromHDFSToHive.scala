@@ -55,7 +55,7 @@ class InvoicesFromHDFSToHive(hdfsPath: String, hiveTableName: String) {
       StructField("quantity", IntegerType, nullable = true) :: Nil
   )
 
-  def getDataframeFromHDFSByGivenHours(nowHours: String): Unit = {
+  def getDataframeFromHDFSByGivenHours(): Unit = {
 
     try {
       val nowHoursStr: String = getNowHoursUTC
@@ -145,8 +145,8 @@ object InvoicesFromHDFSToHive {
       val hiveMainTableName = configHive.getString("invoicesTableName")
 
       val invoicesFromHDFSToHive = new InvoicesFromHDFSToHive(hdfsInvoicesPath, hiveMainTableName)
-      val nowHours: String = getNowHoursUTC
-      invoicesFromHDFSToHive.getDataframeFromHDFSByGivenHours(nowHours)
+      //val nowHours: String = getNowHoursUTC
+      invoicesFromHDFSToHive.getDataframeFromHDFSByGivenHours()
       println("hdfsPath: " + hdfsInvoicesPath)
     } catch {
       case e: Exception => println("InvoicesFromHDFSToHive, " +

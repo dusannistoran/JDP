@@ -45,78 +45,94 @@ class CountriesFromInvoicesCsvToHDFS(localPath: String, hdfsPath: String) {
 
   def getDataframeFromLocalByGivenDate: DataFrame = {
 
-    val today = LocalDate.now()
-    val formatterDate = DateTimeFormatter.ofPattern("M/d/yyyy")
-    val csvToday = today.minusDays(differenceInDays)
-    val csvTodayFormattedString: String = csvToday.format(formatterDate)
+    try {
+      val today = LocalDate.now()
+      val formatterDate = DateTimeFormatter.ofPattern("M/d/yyyy")
+      val csvToday = today.minusDays(differenceInDays)
+      val csvTodayFormattedString: String = csvToday.format(formatterDate)
 
-    // This is from invoices.csv
-    val dfWholeCsvFile = spark
-      .read
-      .format("csv")
-      .option("header", "true")
-      .schema(schema)
-      .load(localPath)
+      // This is from invoices.csv
+      val dfWholeCsvFile = spark
+        .read
+        .format("csv")
+        .option("header", "true")
+        .schema(schema)
+        .load(localPath)
 
-    // filtered by date: today - differenceInDays
-    val dfOnlyAkaToday = dfWholeCsvFile.filter(col("InvoiceDate").startsWith(csvTodayFormattedString))
-    println("dfOnlyAkaToday:")
-    dfOnlyAkaToday.show()
-    println("dfOnlyAkaToday count: " + dfOnlyAkaToday.count())
+      // filtered by date: today - differenceInDays
+      val dfOnlyAkaToday = dfWholeCsvFile.filter(col("InvoiceDate").startsWith(csvTodayFormattedString))
+      println("dfOnlyAkaToday:")
+      dfOnlyAkaToday.show()
+      println("dfOnlyAkaToday count: " + dfOnlyAkaToday.count())
 
-    dfOnlyAkaToday
+      dfOnlyAkaToday
+    } catch {
+      case e: Exception => println("CountriesFromInvoicesCsvToHDFS, " +
+        "def getDataframeFromLocalByGivenDate: DataFrame, " +
+        "error occurred: " + e)
+        import org.apache.spark.sql.Row
+        val emptyDf: DataFrame = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], schema)
+        emptyDf
+    }
   }
 
   def modifyDataframeAndSaveToHDFS(df: DataFrame): Unit = {
 
-    // extracting country_id and country_name
-    val splitColCountry = split(df.col("Country"), "-")
-    val dfWithCountryIdCountryName = df
-      .withColumn("country_id", splitColCountry.getItem(0))
-      .withColumn("country_name", extractCountryName(col("country_id")))
+    try {
+      // extracting country_id and country_name
+      val splitColCountry = split(df.col("Country"), "-")
+      val dfWithCountryIdCountryName = df
+        .withColumn("country_id", splitColCountry.getItem(0))
+        .withColumn("country_name", extractCountryName(col("country_id")))
 
-    println("dfWithCountryIdCountryName:")
-    dfWithCountryIdCountryName.show()
-    println("dfWithCountryIdCountryName count: " + dfWithCountryIdCountryName.count())
+      println("dfWithCountryIdCountryName:")
+      dfWithCountryIdCountryName.show()
+      println("dfWithCountryIdCountryName count: " + dfWithCountryIdCountryName.count())
 
-    val dfCountryIdCountryName = dfWithCountryIdCountryName
-      .drop("InvoiceNo", "StockCode", "Quantity")
-      .drop("InvoiceDate", "CustomerID", "Country")
+      val dfCountryIdCountryName = dfWithCountryIdCountryName
+        .drop("InvoiceNo", "StockCode", "Quantity")
+        .drop("InvoiceDate", "CustomerID", "Country")
 
-    println("dfCountryIdCountryName:")
-    dfCountryIdCountryName.show()
-    println("dfCountryIdCountryName count: " + dfCountryIdCountryName.count())
+      println("dfCountryIdCountryName:")
+      dfCountryIdCountryName.show()
+      println("dfCountryIdCountryName count: " + dfCountryIdCountryName.count())
 
-    // write countries to HDFS
-    dfCountryIdCountryName.write
-      .mode("overwrite")
-      .option("header", "true")
-      .csv(hdfsPath)
+      // write countries to HDFS
+      dfCountryIdCountryName.write
+        .mode("overwrite")
+        .option("header", "true")
+        .csv(hdfsPath)
+    } catch {
+      case e: Exception => println("CoutriesFromInvoicesCsvToHDFS, " +
+        "def modifyDataframeAndSaveToHDFS(df: DataFrame): Unit, " +
+        "error occurred: " + e)
+    }
   }
-
 }
 
 object CountriesFromInvoicesCsvToHDFS {
 
   def main(args: Array[String]): Unit = {
 
-    val configSpark: Config = ConfigFactory.load().getConfig("application.spark")
-    val configHDFS: Config = ConfigFactory.load().getConfig("application.hdfs")
-    val csvInvoicesPath: String = configSpark.getString("localInvoicesPath")
-    val hdfsCountriesPath: String = configHDFS.getString("hdfsCountriesPath")
+    try {
+      val configSpark: Config = ConfigFactory.load().getConfig("application.spark")
+      val configHDFS: Config = ConfigFactory.load().getConfig("application.hdfs")
+      val csvInvoicesPath: String = configSpark.getString("localInvoicesPath")
+      val hdfsCountriesPath: String = configHDFS.getString("hdfsCountriesPath")
 
-    val today = new SimpleDateFormat("dd-MM-yyyy").format(new Date())
-    val hdfsWholePath: String = hdfsCountriesPath + "/" + today
+      val today = new SimpleDateFormat("dd-MM-yyyy").format(new Date())
+      val hdfsWholePath: String = hdfsCountriesPath + "/" + today
 
 
-    val countriesFromInvoicesCsvToHDFS =
-      new CountriesFromInvoicesCsvToHDFS(csvInvoicesPath, hdfsWholePath)
-    val dataframe = countriesFromInvoicesCsvToHDFS.getDataframeFromLocalByGivenDate
-    //println("dataframe:")
-    //dataframe.show()
-    //println("dataframe count: " + dataframe.count())
+      val countriesFromInvoicesCsvToHDFS =
+        new CountriesFromInvoicesCsvToHDFS(csvInvoicesPath, hdfsWholePath)
+      val dataframe = countriesFromInvoicesCsvToHDFS.getDataframeFromLocalByGivenDate
 
-    countriesFromInvoicesCsvToHDFS.modifyDataframeAndSaveToHDFS(dataframe)
-
+      countriesFromInvoicesCsvToHDFS.modifyDataframeAndSaveToHDFS(dataframe)
+    } catch {
+      case e: Exception => println("CountriesFromInvoicesCsvToHDFS, " +
+        "def main(args: Array[String]): Unit, " +
+        "error occurred: " + e)
+    }
   }
 }

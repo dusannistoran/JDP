@@ -52,7 +52,7 @@ class InvoicesFromLocalToHDFS(localPath: String, hdfsPath: String) {
     try {
 
       val today: LocalDate = LocalDate.now()
-      // american format
+      // US format
       val formatterDate = DateTimeFormatter.ofPattern("M/d/yyyy")
       val todayFormattedStr: String = today.format(formatterDate)
       val csvToday: LocalDate = today.minusDays(differenceInDays)

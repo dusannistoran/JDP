@@ -47,4 +47,5 @@ src/main/scala/com/example/Std.scala
 bash-scripts/.test-fast-mode.sh.swp
 python-scripts/__pycache__/
 python-scripts/main1.py
+python-scripts/main.py.orig
 ..gitignore.swp

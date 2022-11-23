@@ -9,92 +9,45 @@ config.read('config.ini')
 data_origin_csv_filepath = config['data_origin']['path']
 data_edited_csv_filepath = config['data_edited']['path']
 
-data_origin_dict = {
-    "InvoiceNo": [],
-    "StockCode": [],
-    "Description": [],
-    "Quantity": [],
-    "InvoiceDate": [],
-    "UnitPrice": [],
-    "CustomerID": [],
-    "Country": []
-}
-
-with open(f'{data_origin_csv_filepath}', 'r', encoding="ISO-8859-1") as csv_file:
-    csv_reader = csv.DictReader(csv_file, delimiter=',')
-    # next(csv_reader)  # to skip header
-    #count = 0
-
-    for line in csv_reader:
-        data_origin_dict["InvoiceNo"].append(line["InvoiceNo"])
-        data_origin_dict["StockCode"].append(line["StockCode"])
-        data_origin_dict["Description"].append(line["Description"])
-        data_origin_dict["Quantity"].append(line["Quantity"])
-        data_origin_dict["InvoiceDate"].append(line["InvoiceDate"])
-        data_origin_dict["UnitPrice"].append(line["UnitPrice"])
-        data_origin_dict["CustomerID"].append(line["CustomerID"])
-        data_origin_dict["Country"].append(line["Country"])
-
-# Just checking dictionary arrays' lengths
-print('data_origin_dict["InvoiceNo"] length:', len(data_origin_dict["InvoiceNo"]))
-print('data_origin_dict["StockCode"] length:', len(data_origin_dict["StockCode"]))
-print('data_origin_dict["Description"] length:', len(data_origin_dict["Description"]))
-print('data_origin_dict["Quantity"] length:', len(data_origin_dict["Quantity"]))
-print('data_origin_dict["InvoiceDate"] length:', len(data_origin_dict["InvoiceDate"]))
-print('data_origin_dict["UnitPrice"] length:', len(data_origin_dict["UnitPrice"]))
-print('data_origin_dict["CustomerID"] length:', len(data_origin_dict["CustomerID"]))
-print('data_origin_dict["Country"] length:', len(data_origin_dict["Country"]))
-
-### Country #####################################################################
-
-print('Country values:')
-print(data_origin_dict["Country"])
-print('data_origin_dict["Country"] len:', len(data_origin_dict["Country"]))
+with open(data_origin_csv_filepath, 'r', encoding="ISO-8859-1") as file:
+    data = [tuple(line) for line in csv.reader(file)]
 
 countries_list = []
-for country in data_origin_dict["Country"]:
-    countries_list.append(country)
 
-countries_set = set(countries_list)
-print('Countries in countries_set:')
-for country in countries_set:
-    print(country)
-print('countries_set len:', len(countries_set))
+for tup in data:
+    countries_list.append(tup[7])
 
 one_to_six_list = list(range(1, 7))
-newInvoiceNos = []
+new_invoice_nos = []
 rand_num = random.choices(one_to_six_list, k=6)[0]
 
-for country in data_origin_dict["Country"]:
+# skip the header
+data = data[1:]
+
+for idx, tup in enumerate(data):
+    print('Index: ' + str(idx) + ' Country: ' + tup[7])
+    country = tup[7]
     if country in countries_invalid:
-        idx = data_origin_dict["Country"].index(country)
-        data_origin_dict["Country"][idx] = 'invalid'
-        print('idx:', idx)
+        #data_first_fifty[idx] = tup, 'invalid'
+        data[idx] = tup, 'invalid'
     else:
-        idx = data_origin_dict["Country"].index(country)
-        invoiceNo = data_origin_dict["InvoiceNo"][idx]
-        countryId = countries_all[country]
-        if invoiceNo not in newInvoiceNos:
+        #invoice_no = data_first_fifty[idx][0]
+        invoice_no = data[idx][0]
+        print('invoice_no: ' + invoice_no)
+        country_id = countries_all[country]
+        if invoice_no not in new_invoice_nos:
             rand_num = random.choices(one_to_six_list, k=6)[0]
-            data_origin_dict["Country"][idx] = str(countryId) + '-' + str(rand_num)
-            newInvoiceNos.append(invoiceNo)
+            #data_first_fifty[idx] = tup, str(country_id) + '-' + str(rand_num)
+            data[idx] = tup, str(country_id) + '-' + str(rand_num)
+            new_invoice_nos.append(invoice_no)
             print('idx:', idx)
         else:
-            data_origin_dict["Country"][idx] = str(countryId) + '-' + str(rand_num)
+            #data_first_fifty[idx] = tup, str(country_id) + '-' + str(rand_num)
+            data[idx] = tup, str(country_id) + '-' + str(rand_num)
             print('idx:', idx)
 
-print(data_origin_dict["Country"])
-
-with open(f'{data_edited_csv_filepath}', 'w', encoding="UTF-8", newline='') as csv_file:
-    # pass the csv file to csv.writer function.
-    writer = csv.writer(csv_file)
-
-    # pass the dictionary keys to writerow
-    # function to frame the columns of the csv file
-    writer.writerow(data_origin_dict.keys())
-
-    # make use of writerows function to append
-    # the remaining values to the corresponding
-    # columns using zip function.
-    writer.writerows(zip(*data_origin_dict.values()))
-
+header = "InvoiceNo,StockCode,Description,Quantity,InvoiceDate,UnitPrice,CustomerID,Country"
+with open(f'{data_edited_csv_filepath}', 'w', encoding="UTF-8", newline='') as file:
+    file.write(header + "\n")
+    #file.write('\n'.join(f'{tup[0][0]},{tup[0][1]},{tup[0][2]},{tup[0][3]},{tup[0][4]},{tup[0][5]},{tup[0][6]},{tup[1]}' for tup in data_first_fifty))
+    file.write('\n'.join(f'{tup[0][0]},{tup[0][1]},{tup[0][2]},{tup[0][3]},{tup[0][4]},{tup[0][5]},{tup[0][6]},{tup[1]}' for tup in data))

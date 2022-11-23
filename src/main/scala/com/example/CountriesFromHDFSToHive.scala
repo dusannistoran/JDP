@@ -3,13 +3,11 @@ package com.example
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.hadoop.fs.{FileSystem, Path}
 import org.apache.hadoop.conf.Configuration
-import org.apache.spark.sql.{Row, SaveMode, SparkSession}
-import org.apache.spark.sql.functions.expr
+import org.apache.spark.sql.{SaveMode, SparkSession}
 import org.apache.spark.sql.types.{StringType, StructField, StructType}
 import org.slf4j.LoggerFactory
 
 import java.io.File
-import java.net.URI
 import java.text.SimpleDateFormat
 import java.util.Date
 

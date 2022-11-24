@@ -2,16 +2,14 @@ package com.example
 
 import Utils.{extractRegionName, getNowHoursUTC}
 import com.typesafe.config.{Config, ConfigFactory}
-import org.apache.spark.sql.expressions.Window
-import org.apache.spark.sql.functions.{array, array_sort, avg, col, collect_list, count, element_at, explode, expr, first, floor, hour, lit, max, percentile_approx, size, sort_array, split, sqrt, stddev_samp, sum, to_date, udf}
-import org.apache.spark.sql.types.{DecimalType, DoubleType, IntegerType, StringType}
-import org.apache.spark.sql.{Column, DataFrame, SaveMode, SparkSession}
+import org.apache.spark.sql.functions.{col, collect_list, count, first, hour, lit, sort_array, split, sqrt, sum, to_date, udf}
+import org.apache.spark.sql.types.{DecimalType, DoubleType, StringType}
+import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 import org.slf4j.LoggerFactory
 
 import java.io.File
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
-import scala.collection.mutable
 
 // ./spark/bin/spark-submit --jars /home/scala/target/scala-2.12/jdp.jar --class "com.example.Join" --master local[4] /home/scala/target/scala-2.12/jdp_2.12-0.1.0-SNAPSHOT.jar
 // ./spark/bin/spark-submit --packages org.postgresql:postgresql:42.2.5 --jars /home/scala/target/scala-2.12/jdp.jar --class "com.example.Join" --master local[4] /home/scala/target/scala-2.12/jdp_2.12-0.1.0-SNAPSHOT.jar
@@ -32,6 +30,7 @@ class Join(hivePath: String) {
   val postgresUrl: String = configPostgres.getString("url")
   val postgresUser: String = configPostgres.getString("user")
   val postgresPassword: String = configPostgres.getString("password")
+  val postgresTableName: String = configPostgres.getString("dbtable")
 
   val warehouseLocation: String = new File("spark-warehouse").getAbsolutePath
 
@@ -264,7 +263,7 @@ class Join(hivePath: String) {
       .format("jdbc")
       .option("driver", s"$postgresDriver")
       .option("url", s"$postgresUrl")
-      .option("dbtable", "joined_real")
+      .option("dbtable", s"$postgresTableName")
       .option("user", s"$postgresUser")
       .option("password", s"$postgresPassword")
       .load()
@@ -381,7 +380,7 @@ class Join(hivePath: String) {
       .format("jdbc")
       .option("driver", s"$postgresDriver")
       .option("url", s"$postgresUrl")
-      .option("dbtable", "joined_real")
+      .option("dbtable", s"$postgresTableName")
       .option("user", s"$postgresUser")
       .option("password", s"$postgresPassword")
       .mode(SaveMode.Append)

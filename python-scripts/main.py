@@ -1,6 +1,7 @@
 from countries import countries_invalid, countries_all
 import csv
 import random
+from random import randint
 import configparser
 
 config = configparser.ConfigParser()
@@ -35,7 +36,8 @@ try:
             print('invoice_no: ' + invoice_no)
             country_id = countries_all[country]
             if invoice_no not in new_invoice_nos:
-                rand_num = random.choices(one_to_six_list, k=6)[0]
+                #rand_num = random.choices(one_to_six_list, k=6)[0]
+                rand_num = randint(1, 6)
                 data[idx] = tup, str(country_id) + '-' + str(rand_num)
                 new_invoice_nos.append(invoice_no)
                 print('idx:', idx)

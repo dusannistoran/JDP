@@ -3,7 +3,7 @@ package com.example
 import Utils.{extractRegionName, getNowHoursUTC}
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.spark.sql.functions.{col, collect_list, count, first, hour, lit, sort_array, split, sqrt, sum, to_date, udf}
-import org.apache.spark.sql.types.{DecimalType, DoubleType, StringType}
+import org.apache.spark.sql.types.{DecimalType, DoubleType, StringType, StructType}
 import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 import org.slf4j.LoggerFactory
 
@@ -63,133 +63,168 @@ class Join(hivePath: String) {
 
   def getDataframeInvoices(invoicesHiveTableName: String): DataFrame = {
 
-    // getting all invoices from main Hive table
-    val dfAllInvoicesFromHive = spark.read
-      .parquet(hiveTablePathPrefix + invoicesHiveTableName)
-    val dfAllInvoicesFromHiveWithDateString = dfAllInvoicesFromHive
-      .withColumn("invoice_date_string", dfAllInvoicesFromHive.col("invoice_date").cast(StringType))
+    try {
+      // getting all invoices from main Hive table
+      val dfAllInvoicesFromHive = spark.read
+        .parquet(hiveTablePathPrefix + invoicesHiveTableName)
+      val dfAllInvoicesFromHiveWithDateString = dfAllInvoicesFromHive
+        .withColumn("invoice_date_string", dfAllInvoicesFromHive.col("invoice_date").cast(StringType))
 
-    // filtering invoices by date: today - differenceInDays
-    val dfInvoicesForOnlyToday = dfAllInvoicesFromHiveWithDateString
-      .filter(col("invoice_date_string").startsWith(hiveTodayFormattedString))
-      .drop("invoice_date_string")
-    println(s"dfInvoicesForOnlyToday ($hiveTodayFormattedString):")
-    dfInvoicesForOnlyToday.show()
-    println(s"dfInvoicesForOnlyToday ($hiveTodayFormattedString) count: " + dfInvoicesForOnlyToday.count())
-    println(s"dfInvoicesForOnlyToday ($hiveTodayFormattedString) schema:")
-    dfInvoicesForOnlyToday.printSchema()
+      // filtering invoices by date: today - differenceInDays
+      val dfInvoicesForOnlyToday = dfAllInvoicesFromHiveWithDateString
+        .filter(col("invoice_date_string").startsWith(hiveTodayFormattedString))
+        .drop("invoice_date_string")
+      println(s"dfInvoicesForOnlyToday ($hiveTodayFormattedString):")
+      dfInvoicesForOnlyToday.show()
+      println(s"dfInvoicesForOnlyToday ($hiveTodayFormattedString) count: " + dfInvoicesForOnlyToday.count())
+      println(s"dfInvoicesForOnlyToday ($hiveTodayFormattedString) schema:")
+      dfInvoicesForOnlyToday.printSchema()
 
-    val currentTimeHoursStr: String = getNowHoursUTC
-    println("currentTimeHours: " + currentTimeHoursStr)
-    val currentTimeHoursInt: Int = currentTimeHoursStr.toInt
-    val fourHoursAgoInt: Int = currentTimeHoursInt - 4
-    val threeHoursAgoInt: Int = currentTimeHoursInt - 3
-    val twoHoursAgoInt: Int = currentTimeHoursInt - 2
-    val hourAgoInt: Int = currentTimeHoursInt - 1
-    val fourHoursAgoStr: String = fourHoursAgoInt + ""
-    val threeHoursAgoStr: String = threeHoursAgoInt + ""
-    val twoHoursAgoStr: String = twoHoursAgoInt + ""
-    val hourAgoStr: String = hourAgoInt + ""
+      val currentTimeHoursStr: String = getNowHoursUTC
+      println("currentTimeHours: " + currentTimeHoursStr)
+      val currentTimeHoursInt: Int = currentTimeHoursStr.toInt
+      val fourHoursAgoInt: Int = currentTimeHoursInt - 4
+      val threeHoursAgoInt: Int = currentTimeHoursInt - 3
+      val twoHoursAgoInt: Int = currentTimeHoursInt - 2
+      val hourAgoInt: Int = currentTimeHoursInt - 1
+      val fourHoursAgoStr: String = fourHoursAgoInt + ""
+      val threeHoursAgoStr: String = threeHoursAgoInt + ""
+      val twoHoursAgoStr: String = twoHoursAgoInt + ""
+      val hourAgoStr: String = hourAgoInt + ""
 
-    // filtering invoices by current time;
-    // I involve 4 hours ago, 3 hours ago, 2 hours ago, and hour ago invoices
-    val dfFilteredByHour = dfInvoicesForOnlyToday
-      .filter(
-       // hour(col("invoice_date")) === currentTimeHoursStr
-       //    ||
-             hour(col("invoice_date")) === hourAgoStr
-        ||
-               hour(col("invoice_date")) === twoHoursAgoStr
-        ||
-               hour(col("invoice_date")) === threeHoursAgoStr
-        ||
-               hour(col("invoice_date")) === fourHoursAgoStr
-      )
-    println("dfFilteredByHour:")
-    dfFilteredByHour.show()
-    println("dfFilteredByHour count: " + dfFilteredByHour.count())
-    println("dfFilteredByHour schema:")
-    dfFilteredByHour.printSchema()
+      // filtering invoices by current time;
+      // I involve 4 hours ago, 3 hours ago, 2 hours ago, and hour ago invoices
+      val dfFilteredByHour = dfInvoicesForOnlyToday
+        .filter(
+          // hour(col("invoice_date")) === currentTimeHoursStr
+          //    ||
+          hour(col("invoice_date")) === hourAgoStr
+            ||
+            hour(col("invoice_date")) === twoHoursAgoStr
+            ||
+            hour(col("invoice_date")) === threeHoursAgoStr
+            ||
+            hour(col("invoice_date")) === fourHoursAgoStr
+        )
+      println("dfFilteredByHour:")
+      dfFilteredByHour.show()
+      println("dfFilteredByHour count: " + dfFilteredByHour.count())
+      println("dfFilteredByHour schema:")
+      dfFilteredByHour.printSchema()
 
-    dfFilteredByHour
+      dfFilteredByHour
+    } catch {
+      case e: Exception => println("Join, " +
+        "def getDataframeInvoices(invoicesHiveTableName: String): DataFrame, " +
+        "error occurred: " + e)
+        import org.apache.spark.sql.Row
+        val emptyDf: DataFrame = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], StructType(Seq()))
+        emptyDf
+    }
   }
 
   def getAndTransformDataframeProducts(productHiveTableName: String): DataFrame = {
 
-    // getting all products from product Hive table
-    val dfAllProductsFromHive = spark.sql(s"select * from $productHiveTableName")
-    val dfAllProductsFromHiveWithDateString = dfAllProductsFromHive
-      .withColumn("date_string", dfAllProductsFromHive.col("date").cast(StringType))
+    try {
+      // getting all products from product Hive table
+      val dfAllProductsFromHive = spark.sql(s"select * from $productHiveTableName")
+      val dfAllProductsFromHiveWithDateString = dfAllProductsFromHive
+        .withColumn("date_string", dfAllProductsFromHive.col("date").cast(StringType))
 
-    // filtering invoices by date: today - differenceInDays
-    val dfProductsForOnlyToday = dfAllProductsFromHiveWithDateString
-      .filter(col("date_string").startsWith(hiveTodayFormattedString))
-      .drop("date_string")
-    println(s"dfProductsForOnlyToday ($hiveTodayFormattedString):")
-    dfProductsForOnlyToday.show()
-    println(s"dfProductsForOnlyToday ($hiveTodayFormattedString) count: " + dfProductsForOnlyToday.count())
-    println(s"dfProductsForOnlyToday ($hiveTodayFormattedString) schema:")
-    dfProductsForOnlyToday.printSchema()
+      // filtering invoices by date: today - differenceInDays
+      val dfProductsForOnlyToday = dfAllProductsFromHiveWithDateString
+        .filter(col("date_string").startsWith(hiveTodayFormattedString))
+        .drop("date_string")
+      println(s"dfProductsForOnlyToday ($hiveTodayFormattedString):")
+      dfProductsForOnlyToday.show()
+      println(s"dfProductsForOnlyToday ($hiveTodayFormattedString) count: " + dfProductsForOnlyToday.count())
+      println(s"dfProductsForOnlyToday ($hiveTodayFormattedString) schema:")
+      dfProductsForOnlyToday.printSchema()
 
-    // I have to aggregate products, because there are products with different unit_price within a date;
-    // This way, I take first only product unit_price
-    val dfProductsAggregated = dfProductsForOnlyToday
-      .groupBy("stock_code", "date")
-      .agg(
-        first("unit_price") alias "first_unit_price",
-        first("product_description") alias "first_product_description")
+      // I have to aggregate products, because there are products with different unit_price within a date;
+      // This way, I take first only product unit_price
+      val dfProductsAggregated = dfProductsForOnlyToday
+        .groupBy("stock_code", "date")
+        .agg(
+          first("unit_price") alias "first_unit_price",
+          first("product_description") alias "first_product_description")
 
+      val dfProductsAggregatedRenamed = dfProductsAggregated
+        .withColumnRenamed("first_unit_price", "unit_price")
+        .withColumnRenamed("first_product_description", "product_description")
+      println("dfProductsAggregatedRenamed:")
+      dfProductsAggregatedRenamed.show()
+      println("dfProductsAggregatedRenamed count: " + dfProductsAggregatedRenamed.count())
+      println("dfProductsAggregatedRenamed schema:")
+      dfProductsAggregatedRenamed.printSchema()
 
-    val dfProductsAggregatedRenamed = dfProductsAggregated
-      .withColumnRenamed("first_unit_price", "unit_price")
-      .withColumnRenamed("first_product_description", "product_description")
-    println("dfProductsAggregatedRenamed:")
-    dfProductsAggregatedRenamed.show()
-    println("dfProductsAggregatedRenamed count: " + dfProductsAggregatedRenamed.count())
-    println("dfProductsAggregatedRenamed schema:")
-    dfProductsAggregatedRenamed.printSchema()
-
-    dfProductsAggregatedRenamed
+      dfProductsAggregatedRenamed
+    } catch {
+      case e: Exception => println("Join, " +
+        "def getAndTransformDataframeProducts(productHiveTableName: String): DataFrame, " +
+        "error occurred: " + e)
+        import org.apache.spark.sql.Row
+        val emptyDf: DataFrame = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], StructType(Seq()))
+        emptyDf
+    }
   }
 
   def getDataframeCountries(countriesHiveTableName: String): DataFrame = {
 
-    // getting all countries from country Hive table
-    val dfAllCountriesFromHive = spark.sql(s"select * from $countriesHiveTableName")
-    println("dfAllCountriesFromHive:")
-    dfAllCountriesFromHive.show()
-    println("dfAllCountriesFromHive count: " + dfAllCountriesFromHive.count())
-    println("dfAllCountriesFromHive schema:")
-    dfAllCountriesFromHive.printSchema()
+    try {
+      // getting all countries from country Hive table
+      val dfAllCountriesFromHive = spark.sql(s"select * from $countriesHiveTableName")
+      println("dfAllCountriesFromHive:")
+      dfAllCountriesFromHive.show()
+      println("dfAllCountriesFromHive count: " + dfAllCountriesFromHive.count())
+      println("dfAllCountriesFromHive schema:")
+      dfAllCountriesFromHive.printSchema()
 
-    dfAllCountriesFromHive
+      dfAllCountriesFromHive
+    } catch {
+      case e: Exception => println("Join, " +
+        "def getDataframeCountries(countriesHiveTableName: String): DataFrame, " +
+        "error occurred: " + e)
+        import org.apache.spark.sql.Row
+        val emptyDf: DataFrame = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], StructType(Seq()))
+        emptyDf
+    }
   }
 
   def joinAllDataframes(dfInvoices: DataFrame, dfProducts: DataFrame, dfCountries: DataFrame): DataFrame = {
 
-    // Building the column with only date (as opposed to date and time)
-    val dfInvoicesWithDate = dfInvoices
-      .withColumn("date", to_date(dfInvoices.col("invoice_date"), "M/d/yyyy"))
+    try {
+      // Building the column with only date (as opposed to date and time)
+      val dfInvoicesWithDate = dfInvoices
+        .withColumn("date", to_date(dfInvoices.col("invoice_date"), "M/d/yyyy"))
 
-    // Join invoices and products, by stock_code and date
-    val joinedInvoicesAndProducts = dfInvoicesWithDate.join(
-      dfProducts, Seq("stock_code", "date"), "leftouter"
-    )
-    println("joinedInvoicesAndProducts count: " + joinedInvoicesAndProducts.count())
+      // Join invoices and products, by stock_code and date
+      val joinedInvoicesAndProducts = dfInvoicesWithDate.join(
+        dfProducts, Seq("stock_code", "date"), "leftouter"
+      )
+      println("joinedInvoicesAndProducts count: " + joinedInvoicesAndProducts.count())
 
-    // Building the columns: country_id, region_id and total_price (quantity * unit_price)
-    val splitColCountry = split(joinedInvoicesAndProducts.col("country"), "-")
-    val joinedInvoicesAndProductsCountryIdRegionId = joinedInvoicesAndProducts
-      .withColumn("country_id", splitColCountry.getItem(0))
-      .withColumn("region_id", splitColCountry.getItem(1))
-      .withColumn("total_price", (col("quantity") * col("unit_price")).cast(DecimalType(8, 2)))
-      .withColumn("region", extractRegionName(col("region_id")))
+      // Building the columns: country_id, region_id and total_price (quantity * unit_price)
+      val splitColCountry = split(joinedInvoicesAndProducts.col("country"), "-")
+      val joinedInvoicesAndProductsCountryIdRegionId = joinedInvoicesAndProducts
+        .withColumn("country_id", splitColCountry.getItem(0))
+        .withColumn("region_id", splitColCountry.getItem(1))
+        .withColumn("total_price", (col("quantity") * col("unit_price")).cast(DecimalType(8, 2)))
+        .withColumn("region", extractRegionName(col("region_id")))
 
-    // Join previous joined table and countries table, by country_id
-    val joinedAll = joinedInvoicesAndProductsCountryIdRegionId.join(
-      dfCountries, Seq("country_id"), "inner"
-    )
-    joinedAll
+      // Join previous joined table and countries table, by country_id
+      val joinedAll = joinedInvoicesAndProductsCountryIdRegionId.join(
+        dfCountries, Seq("country_id"), "inner"
+      )
+      joinedAll
+    } catch {
+      case e: Exception => println("Join, " +
+        "def joinAllDataframes(dfInvoices: DataFrame, dfProducts: DataFrame, dfCountries: DataFrame): DataFrame, " +
+        "error occurred: " + e)
+        import org.apache.spark.sql.Row
+        val emptyDf: DataFrame = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], StructType(Seq()))
+        emptyDf
+    }
   }
 
   /*
@@ -258,184 +293,210 @@ class Join(hivePath: String) {
 
   def extractInvoicesForEmailMedian(joinedAllDf: DataFrame): DataFrame = {
 
-    // first, extract whole "old" data from Postgres
-    val fromPostgresDf = spark.read
-      .format("jdbc")
-      .option("driver", s"$postgresDriver")
-      .option("url", s"$postgresUrl")
-      .option("dbtable", s"$postgresTableName")
-      .option("user", s"$postgresUser")
-      .option("password", s"$postgresPassword")
-      .load()
-    println("fromPostgresDf:")
-    fromPostgresDf.show()
-    println("fromPostgresDf count: " + fromPostgresDf.count())
+    try {
+      // first, extract whole "old" data from Postgres
+      val fromPostgresDf = spark.read
+        .format("jdbc")
+        .option("driver", s"$postgresDriver")
+        .option("url", s"$postgresUrl")
+        .option("dbtable", s"$postgresTableName")
+        .option("user", s"$postgresUser")
+        .option("password", s"$postgresPassword")
+        .load()
+      println("fromPostgresDf:")
+      fromPostgresDf.show()
+      println("fromPostgresDf count: " + fromPostgresDf.count())
 
-    // then, calculate median and standard deviation per stock_code for old Postgres data
-    val withMedianArrayDf: DataFrame = fromPostgresDf
-      .select("stock_code", "quantity")
-      .groupBy("stock_code")
-      .agg(sort_array(collect_list(col("quantity"))) alias "median_array")
+      // then, calculate median and standard deviation per stock_code for old Postgres data
+      val withMedianArrayDf: DataFrame = fromPostgresDf
+        .select("stock_code", "quantity")
+        .groupBy("stock_code")
+        .agg(sort_array(collect_list(col("quantity"))) alias "median_array")
 
-    println("withMedianArrayDf:")
-    withMedianArrayDf.show()
-    println("withMedianArrayDf schema:")
-    withMedianArrayDf.printSchema()
+      println("withMedianArrayDf:")
+      withMedianArrayDf.show()
+      println("withMedianArrayDf schema:")
+      withMedianArrayDf.printSchema()
 
-    val arrayToInt = (arr: scala.collection.mutable.Seq[Int]) => {
-      if (arr.length % 2 == 1) arr(arr.length / 2)
-      else (arr(arr.length / 2 - 1) + arr(arr.length / 2)) / 2
+      val arrayToInt = (arr: scala.collection.mutable.Seq[Int]) => {
+        if (arr.length % 2 == 1) arr(arr.length / 2)
+        else (arr(arr.length / 2 - 1) + arr(arr.length / 2)) / 2
+      }
+
+      val arrayToIntUDF = udf(arrayToInt)
+
+      val withMedianIntDf: DataFrame = withMedianArrayDf
+        .withColumn("median_int", arrayToIntUDF(withMedianArrayDf.col("median_array")))
+      println("withMedianIntDf:")
+      withMedianIntDf.show()
+      println("withMedianIntDf count: " + withMedianIntDf.count())
+
+      val joined: DataFrame = fromPostgresDf.join(
+        withMedianIntDf, Seq("stock_code"), "inner"
+      )
+      println("joined:")
+      joined.show()
+      println("joined count: " + joined.count())
+
+      val withStandardDeviation: DataFrame = joined
+        .select("stock_code", "quantity", "median_array", "median_int")
+        .groupBy("stock_code")
+        .agg(
+          sqrt(sum((col("quantity") - col("median_int")) * (col("quantity") - col("median_int"))) / count("stock_code"))
+            alias "standard_deviation"
+          , first(col("median_int")) alias "quantity_median")
+      println("withStandardDeviation:")
+      withStandardDeviation.show(46)
+      println("withStandardDeviation count: " + withStandardDeviation.count())
+
+      // join new data with withStandardDeviation dataframe
+      val newAndOldDf: DataFrame = withStandardDeviation.join(
+        joinedAllDf, Seq("stock_code"), "inner"
+      )
+      println("newAndOldDf:")
+      println("newAndOldDf count: " + newAndOldDf.count())
+      newAndOldDf.show(71)
+
+      // and filter newAndOldDf, so that only remain rows for email
+      val forEmailDf = newAndOldDf
+        .filter(col("quantity").cast(DoubleType) > lit(2.0) * col("standard_deviation") + col("quantity_median"))
+      println("forEmailDf:")
+      forEmailDf.show()
+      println("forEmailDf count: " + forEmailDf.count())
+
+      forEmailDf
+    } catch {
+      case e: Exception => println("Join, " +
+        "def extractInvoicesForEmailMedian(joinedAllDf: DataFrame): DataFrame, " +
+        "error occurred: " + e)
+        import org.apache.spark.sql.Row
+        val emptyDf: DataFrame = spark.createDataFrame(spark.sparkContext.emptyRDD[Row], StructType(Seq()))
+        emptyDf
     }
-
-    val arrayToIntUDF = udf(arrayToInt)
-
-    val withMedianIntDf: DataFrame = withMedianArrayDf
-      .withColumn("median_int", arrayToIntUDF(withMedianArrayDf.col("median_array")))
-    println("withMedianIntDf:")
-    withMedianIntDf.show()
-    println("withMedianIntDf count: " + withMedianIntDf.count())
-
-
-    val joined: DataFrame = fromPostgresDf.join(
-      withMedianIntDf, Seq("stock_code"), "inner"
-    )
-    println("joined:")
-    joined.show()
-    println("joined count: " + joined.count())
-
-    val withStandardDeviation: DataFrame = joined
-      .select("stock_code", "quantity", "median_array", "median_int")
-      .groupBy("stock_code")
-      .agg(
-        sqrt(sum((col("quantity") - col("median_int")) * (col("quantity") - col("median_int"))) / count("stock_code"))
-          alias "standard_deviation"
-        , first(col("median_int")) alias "quantity_median")
-    println("withStandardDeviation:")
-    withStandardDeviation.show(46)
-    println("withStandardDeviation count: " + withStandardDeviation.count())
-
-    // join new data with withStandardDeviation dataframe
-    val newAndOldDf: DataFrame = withStandardDeviation.join(
-      joinedAllDf, Seq("stock_code"), "inner"
-    )
-    println("newAndOldDf:")
-    println("newAndOldDf count: " + newAndOldDf.count())
-    newAndOldDf.show(71)
-
-    // and filter newAndOldDf, so that only remain rows for email
-    val forEmailDf = newAndOldDf
-      .filter(col("quantity").cast(DoubleType) > lit(2.0) * col("standard_deviation") + col("quantity_median"))
-    println("forEmailDf:")
-    forEmailDf.show()
-    println("forEmailDf count: " + forEmailDf.count())
-
-    forEmailDf
   }
 
 
   def sendEmail(forEmailDf: DataFrame): Unit = {
 
-    def createEmailBody(df: DataFrame): String = {
+    try {
+      def createEmailBody(df: DataFrame): String = {
 
-      var text: String = ""
-      val data = df.rdd
-        .map(row => {
-          row.mkString(" | ") + "\r\n"
-        }).collect()
-      data.foreach(line => text = text + line + "\r\n")
+        var text: String = ""
+        val data = df.rdd
+          .map(row => {
+            row.mkString(" | ") + "\r\n"
+          }).collect()
+        data.foreach(line => text = text + line + "\r\n")
 
 
-      println("text: ")
-      println(text)
+        println("text: ")
+        println(text)
 
-      text
+        text
+      }
+
+      val columnsSeq = Seq("stock_code", "standard_deviation", "quantity_median", "country_id", "date", "invoice_no",
+        "customer_id", "country", "invoice_date", "quantity", "unit_price", "product_description", "region_id",
+        "total_price", "country_name")
+
+      val header = columnsSeq.map(c => c + " | ").mkString
+
+      val msg = header + "\n" + createEmailBody(forEmailDf)
+
+      val obj = new Email("/home/scala/src/main/resources/application-mail.conf")
+      //val obj = new Email(s"$configEmail")
+      val spark: SparkSession = SparkSession.builder().appName("Spark Mail Job").master("local[4]").getOrCreate()
+      obj.sendMail(msg, spark.sparkContext.applicationId, "test", "R", "", "")
+    } catch {
+      case e: Exception =>
+        println("Join, " +
+          "def sendEmail(forEmailDf: DataFrame): Unit, " +
+          "error occurred: " + e)
     }
-
-    val columnsSeq = Seq("stock_code", "standard_deviation", "quantity_median", "country_id", "date", "invoice_no",
-      "customer_id", "country", "invoice_date", "quantity", "unit_price", "product_description", "region_id",
-      "total_price", "country_name")
-
-    val header = columnsSeq.map(c => c + " | ").mkString
-
-    val msg = header + "\n" + createEmailBody(forEmailDf)
-
-    val obj = new Email("/home/scala/src/main/resources/application-mail.conf")
-    //val obj = new Email(s"$configEmail")
-    val spark: SparkSession = SparkSession.builder().appName("Spark Mail Job").master("local[4]").getOrCreate()
-    obj.sendMail(msg, spark.sparkContext.applicationId, "test", "R", "", "")
-
   }
 
   def writeDataframeToPostgres(dataframe: DataFrame): Unit = {
 
-    // I don't want to save rows with unit_price 0.0 or customer_id null
-    val filteredDf = dataframe.filter(col("total_price")  =!= 0.0 &&
-                                      col("customer_id").isNotNull &&
-                                      col("quantity").gt(0))
-    println("filteredDf:")
-    filteredDf.show()
-    println("filteredDf count: " + filteredDf.count())
+    try {
+      // I don't want to save rows with unit_price 0.0 or customer_id null
+      val filteredDf = dataframe.filter(col("total_price") =!= 0.0 &&
+        col("customer_id").isNotNull &&
+        col("quantity").gt(0))
+      println("filteredDf:")
+      filteredDf.show()
+      println("filteredDf count: " + filteredDf.count())
 
-    filteredDf.write
-      .format("jdbc")
-      .option("driver", s"$postgresDriver")
-      .option("url", s"$postgresUrl")
-      .option("dbtable", s"$postgresTableName")
-      .option("user", s"$postgresUser")
-      .option("password", s"$postgresPassword")
-      .mode(SaveMode.Append)
-      .save()
+      filteredDf.write
+        .format("jdbc")
+        .option("driver", s"$postgresDriver")
+        .option("url", s"$postgresUrl")
+        .option("dbtable", s"$postgresTableName")
+        .option("user", s"$postgresUser")
+        .option("password", s"$postgresPassword")
+        .mode(SaveMode.Append)
+        .save()
+    } catch {
+      case e: Exception =>
+        println("Join, " +
+          "def writeDataframeToPostgres(dataframe: DataFrame): Unit, " +
+          "error occurred: " + e)
+    }
   }
-
 }
 
 object Join {
 
   def main(args: Array[String]): Unit = {
 
-    val configHive: Config = ConfigFactory.load().getConfig("application.hive")
-    val hivePathPrefix: String = configHive.getString("hiveTablesPathPrefix")
+    try {
+      val configHive: Config = ConfigFactory.load().getConfig("application.hive")
+      val hivePathPrefix: String = configHive.getString("hiveTablesPathPrefix")
 
-    val mainHiveTableName = "main"
-    val productsHiveTableName = "product"
-    val countriesHiveTableName = "country"
+      val mainHiveTableName = "main"
+      val productsHiveTableName = "product"
+      val countriesHiveTableName = "country"
 
-    val join = new Join(hivePathPrefix)
+      val join = new Join(hivePathPrefix)
 
-    val dfInvoices = join.getDataframeInvoices(mainHiveTableName)
-    println("\n******************************************************************************************")
+      val dfInvoices = join.getDataframeInvoices(mainHiveTableName)
+      //println("\n******************************************************************************************")
 
-    val dfProducts = join.getAndTransformDataframeProducts(productsHiveTableName)
-    println("\n******************************************************************************************")
+      val dfProducts = join.getAndTransformDataframeProducts(productsHiveTableName)
+      //println("\n******************************************************************************************")
 
-    val dfCountries = join.getDataframeCountries(countriesHiveTableName)
-    println("\n******************************************************************************************")
-    println("******************************************************************************************")
-    println("******************************************************************************************")
+      val dfCountries = join.getDataframeCountries(countriesHiveTableName)
+      //println("\n******************************************************************************************")
+      //println("******************************************************************************************")
+      //println("******************************************************************************************")
 
-    val joinedAll: DataFrame = join.joinAllDataframes(dfInvoices, dfProducts, dfCountries)
-    println("joinedAll:")
-    joinedAll.show(50)
-    println("joinedAll count: " + joinedAll.count())
-    println("joinedAll schema:")
-    joinedAll.printSchema()
+      val joinedAll: DataFrame = join.joinAllDataframes(dfInvoices, dfProducts, dfCountries)
+      println("joinedAll:")
+      joinedAll.show(50)
+      println("joinedAll count: " + joinedAll.count())
+      println("joinedAll schema:")
+      joinedAll.printSchema()
 
-    println("\n******************************************************************************************")
-    println("******************************************************************************************")
-    println("******************************************************************************************")
+      //println("\n******************************************************************************************")
+      //println("******************************************************************************************")
+      //println("******************************************************************************************")
 
-    println("CALCULATING MEDIAN AND STANDARD DEVIATION ")
-    //val forEmailMeanDf = join.extractInvoicesForEmailMean(joinedAll)
-    val forEmailMedianDf = join.extractInvoicesForEmailMedian(joinedAll)
-    println("\nSENDING EMAIL")
+      println("CALCULATING MEDIAN AND STANDARD DEVIATION ")
+      //val forEmailMeanDf = join.extractInvoicesForEmailMean(joinedAll)
+      val forEmailMedianDf = join.extractInvoicesForEmailMedian(joinedAll)
+      println("\nSENDING EMAIL")
 
-    //if (!forEmailMeanDf.isEmpty) join.sendEmail(forEmailMeanDf)
-    //else println("Dataframe mean for email is empty")
+      //if (!forEmailMeanDf.isEmpty) join.sendEmail(forEmailMeanDf)
+      //else println("Dataframe mean for email is empty")
 
-    if (!forEmailMedianDf.isEmpty) join.sendEmail(forEmailMedianDf)
-    else println("Dataframe median for email is empty")
+      if (!forEmailMedianDf.isEmpty) join.sendEmail(forEmailMedianDf)
+      else println("Dataframe median for email is empty")
 
-    println("\nSAVING TO POSTGRES")
-    join.writeDataframeToPostgres(joinedAll)
+      println("\nSAVING TO POSTGRES")
+      join.writeDataframeToPostgres(joinedAll)
+    } catch {
+      case e: Exception => println("Join, " +
+        "def main(args: Array[String]): Unit, " +
+        "error occurred: " + e)
+    }
   }
 }

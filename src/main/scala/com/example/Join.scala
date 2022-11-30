@@ -2,18 +2,18 @@ package com.example
 
 import Utils.{extractRegionName, getNowHoursUTC}
 import com.typesafe.config.{Config, ConfigFactory}
-import org.apache.spark.sql.functions.{col, collect_list, count, first, hour, lit, sort_array, split, sqrt, sum, to_date, udf}
-import org.apache.spark.sql.types.{DecimalType, DoubleType, StringType, StructType}
+import org.apache.spark.sql.functions.{col, collect_list, count, first, hour, lit, sort_array, split, sqrt, sum, to_date, udf, unix_timestamp}
+import org.apache.spark.sql.types.{DecimalType, DoubleType, IntegerType, LongType, StringType, StructType}
 import org.apache.spark.sql.{DataFrame, SaveMode, SparkSession}
 import org.slf4j.LoggerFactory
 
 import java.io.File
-import java.time.LocalDate
+import java.time.{LocalDate, LocalTime}
 import java.time.format.DateTimeFormatter
 
 // ./spark/bin/spark-submit --jars /home/scala/target/scala-2.12/jdp.jar --class "com.example.Join" --master local[4] /home/scala/target/scala-2.12/jdp_2.12-0.1.0-SNAPSHOT.jar
 // ./spark/bin/spark-submit --packages org.postgresql:postgresql:42.2.5 --jars /home/scala/target/scala-2.12/jdp.jar --class "com.example.Join" --master local[4] /home/scala/target/scala-2.12/jdp_2.12-0.1.0-SNAPSHOT.jar
-// ./spark/bin/spark-submit --packages org.postgresql:postgresql:42.2.5 --jars /home/scala/target/scala-2.12/jdp.jar,/home/scala/target/scala-2.12/Scala_Spark_Mail.jar --class "com.example.Join" --master local[4] /home/scala/target/scala-2.12/jdp_2.12-0.1.0-SNAPSHOT.jar
+// ./spark/bin/spark-submit --packages org.postgresql:postgresql:42.2.5 --jars /home/scala/target/scala-2.12/jdp.jar,/home/scala/target/scala-2.12/Scala_Spark_Mail.jar --class "com.example.Join" --master local[2] /home/scala/target/scala-2.12/jdp_2.12-0.1.0-SNAPSHOT.jar
 
 class Join(hivePath: String) {
 
@@ -55,15 +55,19 @@ class Join(hivePath: String) {
   val formatterDate: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd")
 
   val hiveToday: LocalDate = today.minusDays(differenceInDays)
-  //val hiveYesterday: LocalDate = today.minusDays(4346)
+  val hiveYesterday: LocalDate = today.minusDays(differenceInDays + 1)
   val hiveTodayFormattedString: String = hiveToday.format(formatterDate)
-  //val hiveYesterdayFormattedString: String = hiveYesterday.format(formatterDate)
+  val hiveYesterdayFormattedString: String = hiveYesterday.format(formatterDate)
   println("hiveTodayFormattedString: " + hiveTodayFormattedString)
-  //println("hiveYesterdayFormattedString: " + hiveYesterdayFormattedString)
+  println("hiveYesterdayFormattedString: " + hiveYesterdayFormattedString)
 
   def getDataframeInvoices(invoicesHiveTableName: String): DataFrame = {
 
     try {
+      val currentTimeHoursStr: String = getNowHoursUTC
+      println("currentTimeHours: " + currentTimeHoursStr)
+      val currentTimeHoursInt: Int = LocalTime.now().getHour
+
       // getting all invoices from main Hive table
       val dfAllInvoicesFromHive = spark.read
         .parquet(hiveTablePathPrefix + invoicesHiveTableName)
@@ -71,29 +75,36 @@ class Join(hivePath: String) {
         .withColumn("invoice_date_string", dfAllInvoicesFromHive.col("invoice_date").cast(StringType))
 
       // filtering invoices by date: today - differenceInDays
+      var todayOrYesterday = ""
+      //val nulaSati = 0
+      if (currentTimeHoursInt == 0) todayOrYesterday += hiveYesterdayFormattedString
+      else todayOrYesterday += hiveTodayFormattedString
       val dfInvoicesForOnlyToday = dfAllInvoicesFromHiveWithDateString
-        .filter(col("invoice_date_string").startsWith(hiveTodayFormattedString))
+        //.filter(col("invoice_date_string").startsWith(hiveTodayFormattedString))
+        .filter(col("invoice_date_string").startsWith(todayOrYesterday))
         .drop("invoice_date_string")
+
+
       println(s"dfInvoicesForOnlyToday ($hiveTodayFormattedString):")
       dfInvoicesForOnlyToday.show()
       println(s"dfInvoicesForOnlyToday ($hiveTodayFormattedString) count: " + dfInvoicesForOnlyToday.count())
       println(s"dfInvoicesForOnlyToday ($hiveTodayFormattedString) schema:")
       dfInvoicesForOnlyToday.printSchema()
 
-      val currentTimeHoursStr: String = getNowHoursUTC
-      println("currentTimeHours: " + currentTimeHoursStr)
-      val currentTimeHoursInt: Int = currentTimeHoursStr.toInt
-      val fourHoursAgoInt: Int = currentTimeHoursInt - 4
-      val threeHoursAgoInt: Int = currentTimeHoursInt - 3
-      val twoHoursAgoInt: Int = currentTimeHoursInt - 2
-      val hourAgoInt: Int = currentTimeHoursInt - 1
-      val fourHoursAgoStr: String = fourHoursAgoInt + ""
-      val threeHoursAgoStr: String = threeHoursAgoInt + ""
-      val twoHoursAgoStr: String = twoHoursAgoInt + ""
-      val hourAgoStr: String = hourAgoInt + ""
+
+      //val currentTimeHoursInt: Int = currentTimeHoursStr.toInt
+      //val fourHoursAgoInt: Int = currentTimeHoursInt - 4
+      //val threeHoursAgoInt: Int = currentTimeHoursInt - 3
+      //val twoHoursAgoInt: Int = currentTimeHoursInt - 2
+      //val hourAgoInt: Int = currentTimeHoursInt - 1
+      //val fourHoursAgoStr: String = fourHoursAgoInt + ""
+      //val threeHoursAgoStr: String = threeHoursAgoInt + ""
+      //val twoHoursAgoStr: String = twoHoursAgoInt + ""
+      //val hourAgoStr: String = hourAgoInt + ""
 
       // filtering invoices by current time;
       // I involve 4 hours ago, 3 hours ago, 2 hours ago, and hour ago invoices
+      /*
       val dfFilteredByHour = dfInvoicesForOnlyToday
         .filter(
           // hour(col("invoice_date")) === currentTimeHoursStr
@@ -106,11 +117,47 @@ class Join(hivePath: String) {
             ||
             hour(col("invoice_date")) === fourHoursAgoStr
         )
-      println("dfFilteredByHour:")
-      dfFilteredByHour.show()
-      println("dfFilteredByHour count: " + dfFilteredByHour.count())
-      println("dfFilteredByHour schema:")
-      dfFilteredByHour.printSchema()
+       */
+
+      val currentTimeUnixHours = System.currentTimeMillis() / (1000 * 3600)
+      println("Current UTC unix hours: " + currentTimeUnixHours)
+
+      val currentTimeWithDifferenceInDaysUnixHours = currentTimeUnixHours - differenceInDays * 24
+      println("Current UTC time with 4372 difference in days unix hours: " + currentTimeWithDifferenceInDaysUnixHours)
+
+      val dfWithUnix = dfInvoicesForOnlyToday
+        .withColumn("unix_hours", (unix_timestamp(col("invoice_date"), "yyyy-M-d HH:mm:ss") / 3600).cast(LongType))
+
+      println("dfWithUnix:")
+      dfWithUnix.show()
+      println("dfWithUnix count: " + dfWithUnix.count())
+      println("dfWithUnix schema:")
+      dfWithUnix.printSchema()
+
+      //println("1 hour before Current time Unix hours: " + (currentTimeUnixHours - 1) + "")
+
+      val dfFilteredByHourWithUnix = dfWithUnix
+        .filter(
+          col("unix_hours") === (currentTimeWithDifferenceInDaysUnixHours - 1) + ""
+          ||
+            col("unix_hours") === (currentTimeWithDifferenceInDaysUnixHours - 2) + ""
+          ||
+            col("unix_hours") === (currentTimeWithDifferenceInDaysUnixHours - 3) + ""
+          ||
+            col("unix_hours") === (currentTimeWithDifferenceInDaysUnixHours - 4) + ""
+          //||
+          //    col("unix_hours") === (currentTimeWithDifferenceInDaysUnixHours - 5) + ""
+          //col("unix_hours") === (currentTimeWithDifferenceInDaysUnixHours - 12) + ""
+        )
+
+      println("dfFilteredByHourWithUnix:")
+      dfFilteredByHourWithUnix.show()
+      println("dfFilteredByHourWithUnix count: " + dfFilteredByHourWithUnix.count())
+      println("dfFilteredByHourWithUnix schema:")
+      dfFilteredByHourWithUnix.printSchema()
+
+      val dfFilteredByHour = dfFilteredByHourWithUnix
+        .drop("unix_hours")
 
       dfFilteredByHour
     } catch {
@@ -126,14 +173,21 @@ class Join(hivePath: String) {
   def getAndTransformDataframeProducts(productHiveTableName: String): DataFrame = {
 
     try {
+      val currentTimeHoursInt: Int = LocalTime.now().getHour
+
       // getting all products from product Hive table
       val dfAllProductsFromHive = spark.sql(s"select * from $productHiveTableName")
       val dfAllProductsFromHiveWithDateString = dfAllProductsFromHive
         .withColumn("date_string", dfAllProductsFromHive.col("date").cast(StringType))
 
       // filtering invoices by date: today - differenceInDays
+      var todayOrYesterday = ""
+      //val nulaSati = 0
+      if (currentTimeHoursInt == 0) todayOrYesterday += hiveYesterdayFormattedString
+      else todayOrYesterday += hiveTodayFormattedString
       val dfProductsForOnlyToday = dfAllProductsFromHiveWithDateString
-        .filter(col("date_string").startsWith(hiveTodayFormattedString))
+        //.filter(col("date_string").startsWith(hiveTodayFormattedString))
+        .filter(col("date_string").startsWith(todayOrYesterday))
         .drop("date_string")
       println(s"dfProductsForOnlyToday ($hiveTodayFormattedString):")
       dfProductsForOnlyToday.show()
@@ -480,6 +534,7 @@ object Join {
       //println("******************************************************************************************")
       //println("******************************************************************************************")
 
+
       println("CALCULATING MEDIAN AND STANDARD DEVIATION ")
       //val forEmailMeanDf = join.extractInvoicesForEmailMean(joinedAll)
       val forEmailMedianDf = join.extractInvoicesForEmailMedian(joinedAll)
@@ -493,6 +548,8 @@ object Join {
 
       println("\nSAVING TO POSTGRES")
       join.writeDataframeToPostgres(joinedAll)
+
+
     } catch {
       case e: Exception => println("Join, " +
         "def main(args: Array[String]): Unit, " +

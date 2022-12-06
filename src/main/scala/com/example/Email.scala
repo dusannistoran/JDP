@@ -95,7 +95,7 @@ class Email(Conf:String) {
         } //else defMsg = "<br><h3>" + defaultMsg + "</b></h3>"
         else defMsg = defaultMsg
         //msg = defMsg + "<br>" + text
-        msg = defMsg + text
+        msg = defMsg + "\n" + text
       } else {
         defMsg = "<br><h3>" + defaultMsg + "</b></h3>"
 

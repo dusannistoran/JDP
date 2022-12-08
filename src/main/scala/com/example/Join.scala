@@ -20,7 +20,6 @@ class Join(hivePath: String) {
   val configSpark: Config = ConfigFactory.load().getConfig("application.spark")
   val configHive: Config = ConfigFactory.load().getConfig("application.hive")
   val configMisc: Config = ConfigFactory.load().getConfig("application.misc")
-  //val configEmail: Config = ConfigFactory.load("/home/scala/src/main/resources/application-mail.conf").getConfig("application-mail")
   val differenceInDays: Int = configMisc.getInt("differenceInDays")
   val sparkCores: String = configSpark.getString("master")
   val checkpoint: String = configSpark.getString("checkpointLocation")
@@ -84,40 +83,11 @@ class Join(hivePath: String) {
         .filter(col("invoice_date_string").startsWith(todayOrYesterday))
         .drop("invoice_date_string")
 
-
       println(s"dfInvoicesForOnlyToday ($hiveTodayFormattedString):")
       dfInvoicesForOnlyToday.show()
       println(s"dfInvoicesForOnlyToday ($hiveTodayFormattedString) count: " + dfInvoicesForOnlyToday.count())
       println(s"dfInvoicesForOnlyToday ($hiveTodayFormattedString) schema:")
       dfInvoicesForOnlyToday.printSchema()
-
-
-      //val currentTimeHoursInt: Int = currentTimeHoursStr.toInt
-      //val fourHoursAgoInt: Int = currentTimeHoursInt - 4
-      //val threeHoursAgoInt: Int = currentTimeHoursInt - 3
-      //val twoHoursAgoInt: Int = currentTimeHoursInt - 2
-      //val hourAgoInt: Int = currentTimeHoursInt - 1
-      //val fourHoursAgoStr: String = fourHoursAgoInt + ""
-      //val threeHoursAgoStr: String = threeHoursAgoInt + ""
-      //val twoHoursAgoStr: String = twoHoursAgoInt + ""
-      //val hourAgoStr: String = hourAgoInt + ""
-
-      // filtering invoices by current time;
-      // I involve 4 hours ago, 3 hours ago, 2 hours ago, and hour ago invoices
-      /*
-      val dfFilteredByHour = dfInvoicesForOnlyToday
-        .filter(
-          // hour(col("invoice_date")) === currentTimeHoursStr
-          //    ||
-          hour(col("invoice_date")) === hourAgoStr
-            ||
-            hour(col("invoice_date")) === twoHoursAgoStr
-            ||
-            hour(col("invoice_date")) === threeHoursAgoStr
-            ||
-            hour(col("invoice_date")) === fourHoursAgoStr
-        )
-       */
 
       val currentTimeUnixHours = System.currentTimeMillis() / (1000 * 3600)
       println("Current UTC unix hours: " + currentTimeUnixHours)
@@ -134,8 +104,8 @@ class Join(hivePath: String) {
       println("dfWithUnix schema:")
       dfWithUnix.printSchema()
 
-      //println("1 hour before Current time Unix hours: " + (currentTimeUnixHours - 1) + "")
-
+      // filtering invoices by current time;
+      // I involve 4 hours ago, 3 hours ago, 2 hours ago, and hour ago invoices
       val dfFilteredByHourWithUnix = dfWithUnix
         .filter(
           col("unix_hours") === (currentTimeWithDifferenceInDaysUnixHours - 1) + ""
@@ -145,9 +115,6 @@ class Join(hivePath: String) {
             col("unix_hours") === (currentTimeWithDifferenceInDaysUnixHours - 3) + ""
           ||
             col("unix_hours") === (currentTimeWithDifferenceInDaysUnixHours - 4) + ""
-          //||
-          //    col("unix_hours") === (currentTimeWithDifferenceInDaysUnixHours - 5) + ""
-          //col("unix_hours") === (currentTimeWithDifferenceInDaysUnixHours - 12) + ""
         )
 
       println("dfFilteredByHourWithUnix:")
@@ -429,7 +396,6 @@ class Join(hivePath: String) {
     }
   }
 
-
   def sendEmail(forEmailDf: DataFrame): Unit = {
 
     try {
@@ -458,7 +424,6 @@ class Join(hivePath: String) {
       val msg = header + "\n" + createEmailBody(forEmailDf)
 
       val obj = new Email("/home/scala/src/main/resources/application-mail.conf")
-      //val obj = new Email(s"$configEmail")
       val spark: SparkSession = SparkSession.builder().appName("Spark Mail Job").master("local[4]").getOrCreate()
       obj.sendMail(msg, spark.sparkContext.applicationId, "test", "R", "", "")
     } catch {
@@ -513,15 +478,10 @@ object Join {
       val join = new Join(hivePathPrefix)
 
       val dfInvoices = join.getDataframeInvoices(mainHiveTableName)
-      //println("\n******************************************************************************************")
 
       val dfProducts = join.getAndTransformDataframeProducts(productsHiveTableName)
-      //println("\n******************************************************************************************")
 
       val dfCountries = join.getDataframeCountries(countriesHiveTableName)
-      //println("\n******************************************************************************************")
-      //println("******************************************************************************************")
-      //println("******************************************************************************************")
 
       val joinedAll: DataFrame = join.joinAllDataframes(dfInvoices, dfProducts, dfCountries)
       println("joinedAll:")
@@ -529,11 +489,6 @@ object Join {
       println("joinedAll count: " + joinedAll.count())
       println("joinedAll schema:")
       joinedAll.printSchema()
-
-      //println("\n******************************************************************************************")
-      //println("******************************************************************************************")
-      //println("******************************************************************************************")
-
 
       println("CALCULATING MEDIAN AND STANDARD DEVIATION ")
       //val forEmailMeanDf = join.extractInvoicesForEmailMean(joinedAll)
@@ -548,7 +503,6 @@ object Join {
 
       println("\nSAVING TO POSTGRES")
       join.writeDataframeToPostgres(joinedAll)
-
 
     } catch {
       case e: Exception => println("Join, " +

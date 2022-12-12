@@ -1,7 +1,6 @@
 package com.example
 
 import Utils.getNowHoursUTC
-
 import com.typesafe.config.{Config, ConfigFactory}
 import org.apache.spark.sql.functions.{col, hour, split, to_timestamp}
 import org.apache.spark.sql.{DataFrame, SparkSession}
@@ -10,6 +9,8 @@ import org.slf4j.LoggerFactory
 
 import java.time.{LocalDate, LocalTime}
 import java.time.format.DateTimeFormatter
+
+import scala.util.{Try, Success, Failure}
 
 // ./spark/bin/spark-submit --jars /home/scala/target/scala-2.12/jdp.jar --class "com.example.InvoicesFromLocalToHDFS" --master local[4] /home/scala/target/scala-2.12/jdp_2.12-0.1.0-SNAPSHOT.jar
 
@@ -146,21 +147,36 @@ object InvoicesFromLocalToHDFS {
 
   def main(args: Array[String]): Unit = {
 
-    try {
-      val configSpark: Config = ConfigFactory.load().getConfig("application.spark")
-      val configHDFS: Config = ConfigFactory.load().getConfig("application.hdfs")
-      val csvInvoicesPath: String = configSpark.getString("localInvoicesPath")
-      val hdfsInvoicesPath: String = configHDFS.getString("hdfsInvoicesPath")
+    //try {
+    val configSpark: Try[Config] = Try(ConfigFactory.load().getConfig("application.spark"))
+    val configHDFS: Try[Config] = Try(ConfigFactory.load().getConfig("application.hdfs"))
+    if (configSpark.isSuccess && configHDFS.isSuccess) {
+      val csvInvoicesPath: Try[String] = Try(configSpark.get.getString("localInvoicesPath"))
+      val hdfsInvoicesPath: Try[String] = Try(configHDFS.get.getString("hdfsInvoicesPath"))
+      if (csvInvoicesPath.isSuccess && hdfsInvoicesPath.isSuccess) {
+        val invoicesFromLocalToHDFS: Try[InvoicesFromLocalToHDFS] =
+          Try(new InvoicesFromLocalToHDFS(csvInvoicesPath.get, hdfsInvoicesPath.get))
 
-      val invoicesFromLocalToHDFS = new InvoicesFromLocalToHDFS(csvInvoicesPath, hdfsInvoicesPath)
-      val nowHours: String = getNowHoursUTC
-      val dfFiltered = invoicesFromLocalToHDFS.getDataframeFromLocalByGivenDateAndHour(nowHours)
-      invoicesFromLocalToHDFS.transformDataframeAndSaveToHDFS(dfFiltered)
-    } catch {
-      case e: Exception => println("InvoicesFromLocalToHDFS, " +
-        "def main(args: Array[String]): Unit, " +
-        "error occurred: " + e)
+        val nowHours: String = getNowHoursUTC
+        if (invoicesFromLocalToHDFS.isSuccess) {
+          val dfFiltered = invoicesFromLocalToHDFS.get.getDataframeFromLocalByGivenDateAndHour(nowHours)
+          invoicesFromLocalToHDFS.get.transformDataframeAndSaveToHDFS(dfFiltered)
+        }
+        else println("InvoicesFromLocalToHDFS is not successfully instantiated!")
+      }
+      else println("csvInvoicesPath and/or hdfsInvoicesPath is not successfully assigned!")
     }
+    else println("configSpark and/or configHDFS is not successfully assigned!")
+
+
+
+
+
+    //} catch {
+    //  case e: Exception => println("InvoicesFromLocalToHDFS, " +
+    //    "def main(args: Array[String]): Unit, " +
+    //    "error occurred: " + e)
+    //}
 
   }
 }

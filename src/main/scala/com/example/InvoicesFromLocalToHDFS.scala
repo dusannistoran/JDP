@@ -26,7 +26,7 @@ class InvoicesFromLocalToHDFS(localPath: String, hdfsPath: String) {
   val formatter: DateTimeFormatter = DateTimeFormatter.ofPattern("HH_mm_ss")
   //val now: String = nowTime.format(formatter)
 
-  lazy val spark: SparkSession = SparkSession
+  val spark: SparkSession = SparkSession
     .builder()
     .config("spark.speculation", "false")
     .config("checkpointLocation", s"$checkpoint")

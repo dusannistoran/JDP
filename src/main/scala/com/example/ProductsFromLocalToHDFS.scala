@@ -21,7 +21,7 @@ class ProductsFromLocalToHDFS(localPath: String, hdfsPath: String) {
   val checkpoint: String = configSpark.getString("checkpointLocation")
   val differenceInDays: Int = configMisc.getInt("differenceInDays")
 
-  lazy val spark: SparkSession = SparkSession
+  val spark: SparkSession = SparkSession
     .builder()
     .config("spark.speculation", "false")
     .config("checkpointLocation", s"$checkpoint")

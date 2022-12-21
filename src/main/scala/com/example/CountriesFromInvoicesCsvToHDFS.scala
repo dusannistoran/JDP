@@ -23,7 +23,7 @@ class CountriesFromInvoicesCsvToHDFS(localPath: String, hdfsPath: String) {
   val sparkCores: String = configSpark.getString("master")
   val checkpoint: String = configSpark.getString("checkpointLocation")
 
-  lazy val spark: SparkSession = SparkSession
+  val spark: SparkSession = SparkSession
     .builder()
     .config("spark.speculation", "false")
     .config("checkpointLocation", s"$checkpoint")

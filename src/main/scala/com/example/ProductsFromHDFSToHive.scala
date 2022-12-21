@@ -25,7 +25,7 @@ class ProductsFromHDFSToHive(hdfsPath: String, hiveTableName: String) {
 
   val warehouseLocation: String = new File("spark-warehouse").getAbsolutePath
 
-  lazy val spark: SparkSession = SparkSession
+  val spark: SparkSession = SparkSession
     .builder()
     .config("spark.speculation", "false")
     .config("checkpointLocation", s"$checkpoint")

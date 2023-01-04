@@ -18,7 +18,7 @@ echo "50 8 * * * $spark_submit --jars $jars --class $class_products1 --master $m
 echo "51 8 * * * $spark_submit --jars $jars --class $class_products2 --master $master $end" >> /var/spool/cron/crontabs/root
 echo "52 8 * * * $spark_submit --jars $jars --class $class_countries1 --master $master $end" >> /var/spool/cron/crontabs/root
 echo "53 8 * * * $spark_submit --jars $jars --class $class_countries2 --master $master $end" >> /var/spool/cron/crontabs/root
-echo "54 * * * * $spark_submit --jars $jars --class $class_invoices1 --master $master $end" >> /var/spool/cron/crontabs/root
-echo "56 */4 * * * $spark_submit --jars $jars --class $class_invoices2 --master $master $end" >> /var/spool/cron/crontabs/root 
-echo "58 */4 * * * $spark_submit --packages $packages --jars $email_jars --class $class_join --master $master $end" >> /var/spool/cron/crontabs/root
+echo "55 * * * * $spark_submit --jars $jars --class $class_invoices1 --master $master $end" >> /var/spool/cron/crontabs/root
+echo "57 */4 * * * $spark_submit --jars $jars --class $class_invoices2 --master $master $end" >> /var/spool/cron/crontabs/root 
+echo "59 */4 * * * $spark_submit --packages $packages --jars $email_jars --class $class_join --master $master $end" >> /var/spool/cron/crontabs/root
 crond start
